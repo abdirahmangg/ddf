@@ -299,12 +299,14 @@ class AuthorizationDecision(BaseModel):
         description="Full delegation chain"
     )
 
-    effective_constraints: AuthorityConstraints = Field(
-        description="Effective constraints after full chain evaluation"
+    effective_constraints: Optional[AuthorityConstraints] = Field(
+        default=None,
+        description="Effective constraints after full chain evaluation (ALLOW only)"
     )
 
-    valid_until: datetime = Field(
-        description="Authority validity deadline"
+    valid_until: Optional[datetime] = Field(
+        default=None,
+        description="Authority validity deadline (ALLOW only)"
     )
 
     decision_id: str = Field(

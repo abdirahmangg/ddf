@@ -9,6 +9,7 @@ from ddf import __version__
 from ddf.api.errors import HTTPException
 from ddf.settings import get_settings
 from ddf.api.routes.delegation_endpoints import router as delegation_router
+from ddf.api.routes.authorization_endpoints import router as authorization_router
 
 
 @asynccontextmanager
@@ -55,7 +56,8 @@ def create_app() -> FastAPI:
             "debug": settings.debug,
         }
 
-    # Include delegation routes
+    # Include routers
     app.include_router(delegation_router)
+    app.include_router(authorization_router)
 
     return app
