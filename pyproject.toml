@@ -30,6 +30,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "sqlalchemy>=2.0",
     "alembic>=1.14",
+    "asyncpg>=0.31",
     "psycopg[binary]>=3.0",
     "pynacl>=1.5",
     "httpx>=0.28",
@@ -43,6 +44,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4",
+    "pytest-asyncio>=0.24",
     "pytest-cov>=4.1",
     "hypothesis>=4.14",
     "ruff>=0.1",
