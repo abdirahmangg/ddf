@@ -1,16 +1,25 @@
 """Authorization decision service for DDF."""
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ddf.authority.models import Authority, AuthorizationRequest, AuthorizationDecision
-from ddf.authority.attenuation import AttenuationEngine
+from ddf.api.errors import (
+    AuthorityExpiredError,
+    AuthorityNotFoundError,
+)
 from ddf.authority.constraints import ConstraintValidator
-from ddf.db.models import Authority as AuthorityDB, AuthorizationLog
-from ddf.api.errors import AuthorityNotFoundError, AuthorityExpiredError, AuthorizationDeniedError
+from ddf.authority.models import (
+    Authority,
+    AuthorityConstraints,
+    AuthorizationDecision,
+    AuthorizationRequest,
+)
+from ddf.db.models import (
+    Authority as AuthorityDB,
+    AuthorizationLog,
+)
 
 
 class AuthorizationService:
@@ -24,30 +33,29 @@ class AuthorizationService:
         """
         Make an authorization decision.
 
-        Checks if actor can perform action on resource for given purpose
-        using specified authority.
+        Checks whether an actor can perform an action on a resource for the
+        requested purpose using the specified authority.
 
         Args:
-            session: Database session
-            request: Authorization request
+            session: Database session.
+            request: Authorization request.
 
         Returns:
-            Authorization decision (ALLOW or DENY)
+            AuthorizationDecision containing ALLOW or DENY and explanation.
 
         Raises:
-            AuthorityNotFoundError: Authority doesn't exist
-            AuthorityExpiredError: Authority is expired
+            AuthorityNotFoundError: Authority does not exist.
+            AuthorityExpiredError: Authority validity period has expired.
         """
         now = datetime.now(timezone.utc)
 
-        # Fetch authority from database
         stmt = select(AuthorityDB).where(
             AuthorityDB.authority_id == request.authority_id
         )
         result = await session.execute(stmt)
         auth_db = result.scalar_one_or_none()
 
-        if not auth_db:
+        if auth_db is None:
             decision = AuthorizationDecision(
                 decision="DENY",
                 actor=request.actor,
@@ -59,10 +67,15 @@ class AuthorizationService:
                 reasons=["authority_not_found"],
                 details={"authority_id": request.authority_id},
             )
-            await AuthorizationService._log_decision(session, decision)
-            raise AuthorityNotFoundError(f"Authority not found: {request.authority_id}")
 
-        # Reconstruct Authority from DB record
+            await AuthorizationService._log_decision(
+                session=session,
+                decision=decision,
+                authority_id=request.authority_id,
+            )
+
+            raise AuthorityNotFoundError(request.authority_id)
+
         authority = Authority(
             version=auth_db.version,
             authority_id=auth_db.authority_id,
@@ -71,7 +84,9 @@ class AuthorizationService:
             actions=auth_db.actions,
             resources=auth_db.resources,
             purposes=auth_db.purposes,
-            constraints=AuthorityValidator.reconstruct_constraints(auth_db.constraints_json),
+            constraints=AuthorityValidator.reconstruct_constraints(
+                auth_db.constraints_json
+            ),
             authority_path=auth_db.authority_path,
             issued_at=auth_db.issued_at,
             expires_at=auth_db.expires_at,
@@ -79,8 +94,9 @@ class AuthorizationService:
             holder_public_key=auth_db.holder_public_key,
         )
 
-        # Check expiration
         if authority.expires_at < now:
+            expired_at = authority.expires_at.isoformat()
+
             decision = AuthorizationDecision(
                 decision="DENY",
                 actor=request.actor,
@@ -90,51 +106,69 @@ class AuthorizationService:
                 sponsor=authority.sponsor,
                 authority_path=authority.authority_path,
                 reasons=["authority_expired"],
-                details={"expires_at": authority.expires_at.isoformat()},
+                details={
+                    "authority_id": authority.authority_id,
+                    "expires_at": expired_at,
+                },
             )
-            await AuthorizationService._log_decision(session, decision)
-            raise AuthorityExpiredError(f"Authority expired: {authority.authority_id}")
 
-        # Evaluate authorization
-        reasons = []
-        details = {}
+            await AuthorizationService._log_decision(
+                session=session,
+                decision=decision,
+                authority_id=authority.authority_id,
+            )
 
-        # Check actor
+            raise AuthorityExpiredError(
+                authority_id=authority.authority_id,
+                expired_at=expired_at,
+            )
+
+        reasons: list[str] = []
+        details: dict = {}
+
+        # Actor
         if authority.actor != request.actor:
             reasons.append("actor_mismatch")
             details["authority_actor"] = authority.actor
             details["request_actor"] = request.actor
 
-        # Check action
+        # Action
         if request.action not in authority.actions:
             reasons.append("action_not_permitted")
             details["authority_actions"] = authority.actions
             details["request_action"] = request.action
 
-        # Check resource (hierarchical matching)
+        # Resource
         resource_matches = any(
-            AuthorizationService._resource_matches(request.resource, permitted)
+            AuthorizationService._resource_matches(
+                requested=request.resource,
+                permitted=permitted,
+            )
             for permitted in authority.resources
         )
+
         if not resource_matches:
             reasons.append("resource_not_permitted")
             details["authority_resources"] = authority.resources
             details["request_resource"] = request.resource
 
-        # Check purpose
+        # Purpose
         if request.purpose and request.purpose not in authority.purposes:
             reasons.append("purpose_not_permitted")
             details["authority_purposes"] = authority.purposes
             details["request_purpose"] = request.purpose
 
-        # Check constraints
+        # Constraints
         if authority.constraints:
             constraint_validator = ConstraintValidator()
-            if not constraint_validator.is_valid_now(authority.constraints, now):
+
+            if not constraint_validator.is_valid_now(
+                authority.constraints,
+                now,
+            ):
                 reasons.append("constraint_not_valid_now")
                 details["constraint"] = authority.constraints.model_dump()
 
-        # Make decision
         if reasons:
             decision = AuthorizationDecision(
                 decision="DENY",
@@ -162,18 +196,23 @@ class AuthorizationService:
                 details={},
             )
 
-        # Log decision
-        await AuthorizationService._log_decision(session, decision)
+        await AuthorizationService._log_decision(
+            session=session,
+            decision=decision,
+            authority_id=authority.authority_id,
+        )
+
         return decision
 
     @staticmethod
-    def _resource_matches(requested: str, permitted: str) -> bool:
-        """Check if requested resource matches permitted pattern."""
-        # Exact match
+    def _resource_matches(
+        requested: str,
+        permitted: str,
+    ) -> bool:
+        """Check whether requested resource matches permitted resource scope."""
         if requested == permitted:
             return True
 
-        # Wildcard match: vendor/* matches vendor/dell
         if permitted.endswith("/*"):
             prefix = permitted[:-2]
             return requested.startswith(prefix + "/")
@@ -181,8 +220,12 @@ class AuthorizationService:
         return False
 
     @staticmethod
-    async def _log_decision(session: AsyncSession, decision: AuthorizationDecision):
-        """Log authorization decision to database."""
+    async def _log_decision(
+        session: AsyncSession,
+        decision: AuthorizationDecision,
+        authority_id: str | None = None,
+    ) -> None:
+        """Persist an authorization decision."""
         log = AuthorizationLog(
             decision_id=decision.decision_id,
             actor=decision.actor,
@@ -190,23 +233,24 @@ class AuthorizationService:
             resource=decision.resource,
             purpose=decision.purpose,
             decision=decision.decision,
-            authority_id=decision.authority_path[0] if decision.authority_path else None,
+            authority_id=authority_id,
             reasons=decision.reasons,
             context_json=decision.details,
         )
+
         session.add(log)
         await session.commit()
 
 
 class AuthorityValidator:
-    """Helper for reconstructing Authority from database records."""
+    """Helper for reconstructing Authority values from database records."""
 
     @staticmethod
-    def reconstruct_constraints(constraints_json: dict):
-        """Reconstruct AuthorityConstraints from database JSON."""
-        from ddf.authority.models import AuthorityConstraints
-        
+    def reconstruct_constraints(
+        constraints_json: dict | None,
+    ) -> AuthorityConstraints:
+        """Reconstruct AuthorityConstraints from stored JSON."""
         if not constraints_json:
             return AuthorityConstraints()
-        
+
         return AuthorityConstraints(**constraints_json)

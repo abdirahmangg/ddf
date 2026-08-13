@@ -185,12 +185,16 @@ class TestAuthorizationService:
     @pytest.mark.asyncio
     async def test_authorize_denied_expired_authority(self, test_db):
         """
-        Test authorization denied for an expired authority.
+        Test authorization denied for a historically valid authority
+        whose validity window has now expired.
 
-        Create the authority through GrantService first so the stored
-        authority has a valid cryptographic proof and satisfies all database
-        invariants. Then modify only its expiry timestamp to simulate a
-        previously valid authority that has expired.
+        The authority is first created normally through GrantService so
+        all database and cryptographic fields exist. Its issued_at and
+        expires_at timestamps are then moved into the past while preserving:
+
+            issued_at < expires_at < now
+
+        This represents a structurally valid but expired authority.
         """
         from ddf.api.errors import AuthorityExpiredError
         from ddf.db.models import Authority as AuthorityDB
@@ -215,9 +219,10 @@ class TestAuthorizationService:
         )
         stored_authority = result.scalar_one()
 
-        stored_authority.expires_at = (
-            datetime.now(timezone.utc) - timedelta(hours=1)
-        )
+        now = datetime.now(timezone.utc)
+
+        stored_authority.issued_at = now - timedelta(hours=3)
+        stored_authority.expires_at = now - timedelta(hours=1)
 
         await test_db.commit()
 
