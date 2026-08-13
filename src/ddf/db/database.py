@@ -1,24 +1,34 @@
 """Database session management for DDF."""
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
 from ddf.settings import get_settings
 
 
 class Database:
     """Database connection and session management."""
 
-    def __init__(self):
-        """Initialize database with settings."""
+    def __init__(self) -> None:
+        """Initialize database state."""
         self.settings = get_settings()
-        self.engine = None
-        self.session_maker = None
+        self.engine: AsyncEngine | None = None
+        self.session_maker: async_sessionmaker[AsyncSession] | None = None
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize database engine and session maker."""
-        # Convert postgresql:// URL to postgresql+asyncpg://
         url = self.settings.database_url
+
         if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            url = url.replace(
+                "postgresql://",
+                "postgresql+asyncpg://",
+                1,
+            )
 
         self.engine = create_async_engine(
             url,
@@ -28,31 +38,40 @@ class Database:
         )
 
         self.session_maker = async_sessionmaker(
-            self.engine,
+            bind=self.engine,
             class_=AsyncSession,
             expire_on_commit=False,
-            future=True,
         )
 
     async def get_session(self) -> AsyncSession:
-        """Get a new database session."""
-        if not self.session_maker:
+        """Create a new database session."""
+        if self.session_maker is None:
             await self.initialize()
-        return self.session_maker()
 
-    async def close(self):
+        session_maker = self.session_maker
+
+        if session_maker is None:
+            raise RuntimeError("Database session maker was not initialized")
+
+        return session_maker()
+
+    async def close(self) -> None:
         """Close database connections."""
-        if self.engine:
+        if self.engine is not None:
             await self.engine.dispose()
 
+        self.engine = None
+        self.session_maker = None
 
-# Global database instance
-_db = None
+
+_db: Database | None = None
 
 
 def get_database() -> Database:
-    """Get global database instance."""
+    """Return the process-wide Database instance."""
     global _db
+
     if _db is None:
         _db = Database()
+
     return _db

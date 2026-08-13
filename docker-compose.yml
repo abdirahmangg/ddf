@@ -25,13 +25,14 @@ services:
     environment:
       - OPENFGA_LOG_FORMAT=json
     ports:
+      - "8080:8080"
       - "8081:8081"
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
