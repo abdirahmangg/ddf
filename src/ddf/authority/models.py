@@ -1,10 +1,10 @@
 """Core authority domain models for DDF."""
 
-from datetime import datetime, timezone
-from typing import Any, Optional
-from uuid import UUID, uuid4
+from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AuthorityConstraints(BaseModel):
@@ -14,36 +14,34 @@ class AuthorityConstraints(BaseModel):
     A child authority cannot expand any constraint beyond its parent.
     """
 
-    max_amount: Optional[float] = Field(
+    max_amount: float | None = Field(
         default=None,
         description="Maximum monetary amount permitted (e.g., in base currency units)",
     )
-    currency: Optional[str] = Field(
+    currency: str | None = Field(
         default=None, description="ISO 4217 currency code (e.g., GBP, USD)"
     )
-    geographies: Optional[list[str]] = Field(
+    geographies: list[str] | None = Field(
         default=None,
         description="ISO 3166-1 alpha-2 country codes (e.g., ['GB', 'US'])",
     )
-    audiences: Optional[list[str]] = Field(
+    audiences: list[str] | None = Field(
         default=None,
         description="Intended recipients (e.g., ['vendor-api', 'internal-system'])",
     )
-    valid_from: Optional[datetime] = Field(
+    valid_from: datetime | None = Field(
         default=None, description="Earliest time this authority is valid"
     )
-    expires_at: Optional[datetime] = Field(
+    expires_at: datetime | None = Field(
         default=None, description="Latest time this authority is valid"
     )
-    delegation_depth_remaining: Optional[int] = Field(
+    delegation_depth_remaining: int | None = Field(
         default=None,
         description="Maximum number of further delegations permitted (0 = terminal)",
     )
 
-    class Config:
-        """Pydantic config."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "max_amount": 5000.0,
                 "currency": "GBP",
@@ -52,7 +50,8 @@ class AuthorityConstraints(BaseModel):
                 "expires_at": "2026-08-13T17:00:00Z",
                 "delegation_depth_remaining": 2,
             }
-        }
+        },
+    )
 
 
 class AuthorityProof(BaseModel):
@@ -62,23 +61,18 @@ class AuthorityProof(BaseModel):
         default="Ed25519",
         description="Cryptographic algorithm used (only Ed25519 in v0.1)",
     )
-    key_id: str = Field(
-        description="Key ID of the signer for verification lookup"
-    )
-    signature: str = Field(
-        description="Base64-encoded signature of canonical authority document"
-    )
+    key_id: str = Field(description="Key ID of the signer for verification lookup")
+    signature: str = Field(description="Base64-encoded signature of canonical authority document")
 
-    class Config:
-        """Pydantic config."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "algorithm": "Ed25519",
                 "key_id": "ddf:key:01ARZ3NHHzB...",
                 "signature": "MEUCIQDz...",
             }
-        }
+        },
+    )
 
 
 class Authority(BaseModel):
@@ -117,37 +111,29 @@ class Authority(BaseModel):
         description="Ultimate sponsor of this authority (e.g., 'user:alice@example.com')"
     )
 
-    actions: list[str] = Field(
-        description="Permitted actions (e.g., ['purchase', 'quote'])"
-    )
+    actions: list[str] = Field(description="Permitted actions (e.g., ['purchase', 'quote'])")
 
     resources: list[str] = Field(
         description="Permitted resources (hierarchical, e.g., ['vendor/dell/*'])"
     )
 
-    purposes: list[str] = Field(
-        description="Permitted purposes (e.g., ['procurement'])"
-    )
+    purposes: list[str] = Field(description="Permitted purposes (e.g., ['procurement'])")
 
     constraints: AuthorityConstraints = Field(
         default_factory=AuthorityConstraints,
         description="Scope-limiting constraints",
     )
 
-    authority_path: list[str] = Field(
-        description="Chain of actors from sponsor to current actor"
-    )
+    authority_path: list[str] = Field(description="Chain of actors from sponsor to current actor")
 
     issued_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When this authority was issued (UTC)",
     )
 
-    expires_at: datetime = Field(
-        description="When this authority expires (UTC)"
-    )
+    expires_at: datetime = Field(description="When this authority expires (UTC)")
 
-    parent_authority_id: Optional[str] = Field(
+    parent_authority_id: str | None = Field(
         default=None,
         description="ID of the immediate parent authority (None for root)",
     )
@@ -161,7 +147,7 @@ class Authority(BaseModel):
         description="Base64-encoded public key of the authority holder (for proof-of-possession)"
     )
 
-    proof: Optional[AuthorityProof] = Field(
+    proof: AuthorityProof | None = Field(
         default=None,
         description="Cryptographic proof of validity",
     )
@@ -170,9 +156,8 @@ class Authority(BaseModel):
     @classmethod
     def expires_after_issued(cls, v: datetime, data: Any) -> datetime:
         """Ensure expires_at is after issued_at."""
-        if "issued_at" in data.data:
-            if v <= data.data["issued_at"]:
-                raise ValueError("expires_at must be after issued_at")
+        if "issued_at" in data.data and v <= data.data["issued_at"]:
+            raise ValueError("expires_at must be after issued_at")
         return v
 
     @field_validator("authority_path")
@@ -191,10 +176,8 @@ class Authority(BaseModel):
             raise ValueError("List cannot be empty")
         return v
 
-    class Config:
-        """Pydantic config."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "version": "ddf/0.1",
                 "authority_id": "ddf:authority:01ARZ3NHHzB",
@@ -203,11 +186,7 @@ class Authority(BaseModel):
                 "actions": ["purchase"],
                 "resources": ["vendor/dell/order/*"],
                 "purposes": ["engineering-laptop-procurement"],
-                "constraints": {
-                    "max_amount": 5000,
-                    "currency": "GBP",
-                    "geographies": ["GB"],
-                },
+                "constraints": {"max_amount": 5000, "currency": "GBP", "geographies": ["GB"]},
                 "authority_path": [
                     "user:alice@example.com",
                     "agent:arkstride:assistant",
@@ -224,37 +203,26 @@ class Authority(BaseModel):
                     "signature": "...",
                 },
             }
-        }
+        },
+    )
 
 
 class AuthorizationRequest(BaseModel):
     """Request to perform an authorization check."""
 
-    actor: str = Field(
-        description="Actor attempting the action (e.g., 'agent:arkstride:buyer')"
-    )
-    action: str = Field(
-        description="Action being requested (e.g., 'purchase')"
-    )
-    resource: str = Field(
-        description="Resource being accessed (e.g., 'vendor/dell/order/9281')"
-    )
-    purpose: str = Field(
-        description="Purpose of the request (e.g., 'procurement')"
-    )
-    authority_id: str = Field(
-        description="ID of the authority being exercised"
-    )
+    actor: str = Field(description="Actor attempting the action (e.g., 'agent:arkstride:buyer')")
+    action: str = Field(description="Action being requested (e.g., 'purchase')")
+    resource: str = Field(description="Resource being accessed (e.g., 'vendor/dell/order/9281')")
+    purpose: str = Field(description="Purpose of the request (e.g., 'procurement')")
+    authority_id: str = Field(description="ID of the authority being exercised")
 
     context: dict[str, Any] = Field(
         default_factory=dict,
         description="Request context (amount, currency, geography, etc.)",
     )
 
-    class Config:
-        """Pydantic config."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "actor": "agent:arkstride:buyer",
                 "action": "purchase",
@@ -268,7 +236,8 @@ class AuthorizationRequest(BaseModel):
                     "audience": "vendor-api",
                 },
             }
-        }
+        },
+    )
 
 
 class AuthorizationDecision(BaseModel):
@@ -279,34 +248,20 @@ class AuthorizationDecision(BaseModel):
         pattern="^(ALLOW|DENY)$",
     )
 
-    actor: str = Field(
-        description="Actor evaluated"
-    )
-    action: str = Field(
-        description="Action evaluated"
-    )
-    resource: str = Field(
-        description="Resource evaluated"
-    )
-    purpose: str = Field(
-        description="Purpose evaluated"
-    )
-    sponsor: str = Field(
-        description="Ultimate sponsor of the authority"
+    actor: str = Field(description="Actor evaluated")
+    action: str = Field(description="Action evaluated")
+    resource: str = Field(description="Resource evaluated")
+    purpose: str = Field(description="Purpose evaluated")
+    sponsor: str = Field(description="Ultimate sponsor of the authority")
+
+    authority_path: list[str] = Field(description="Full delegation chain")
+
+    effective_constraints: AuthorityConstraints | None = Field(
+        default=None, description="Effective constraints after full chain evaluation (ALLOW only)"
     )
 
-    authority_path: list[str] = Field(
-        description="Full delegation chain"
-    )
-
-    effective_constraints: Optional[AuthorityConstraints] = Field(
-        default=None,
-        description="Effective constraints after full chain evaluation (ALLOW only)"
-    )
-
-    valid_until: Optional[datetime] = Field(
-        default=None,
-        description="Authority validity deadline (ALLOW only)"
+    valid_until: datetime | None = Field(
+        default=None, description="Authority validity deadline (ALLOW only)"
     )
 
     decision_id: str = Field(
@@ -314,19 +269,15 @@ class AuthorizationDecision(BaseModel):
         description="Unique ID for this decision for audit/explanation lookup",
     )
 
-    reasons: list[str] = Field(
-        description="Machine-readable reasons for decision"
-    )
+    reasons: list[str] = Field(description="Machine-readable reasons for decision")
 
     details: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional details about the decision",
     )
 
-    class Config:
-        """Pydantic config."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "decision": "ALLOW",
                 "actor": "agent:arkstride:buyer",
@@ -355,4 +306,5 @@ class AuthorizationDecision(BaseModel):
                     "amount_within_limit",
                 ],
             }
-        }
+        },
+    )
