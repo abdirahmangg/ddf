@@ -1,0 +1,143 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ddf"
+version = "0.1.0"
+description = "Dynamic Delegation Fabric - Open-source authorization infrastructure for delegated AI-agent authority"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Apache License 2.0"}
+authors = [{name = "Arkstride", email = "open@arkstride.com"}]
+keywords = ["authorization", "delegation", "agent", "security", "capability"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring",
+]
+
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.30.0",
+    "pydantic==2.10.2",
+    "pydantic-settings==2.4.0",
+    "sqlalchemy==2.0.36",
+    "alembic==1.14.0",
+    "psycopg[binary]==3.10.1",
+    "pynacl==1.5.0",
+    "httpx==0.28.1",
+    "click==8.1.7",
+    "click-default-group==1.2.4",
+    "tabulate==0.9.0",
+    "python-dotenv==1.0.1",
+    "pytz==2024.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.24.0",
+    "pytest-cov==5.0.0",
+    "hypothesis==6.104.1",
+    "ruff==0.7.4",
+    "mypy==1.14.1",
+    "types-pytz==2024.1.0.20241201",
+    "types-click==8.1.11",
+    "types-tabulate==0.9.0.20240106",
+    "httpx-mock==0.31.0",
+]
+
+openfga = [
+    "openfga==0.4.1",
+]
+
+[project.scripts]
+ddf = "ddf.cli.main:cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages]
+find = {where = ["src"]}
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--cov=src/ddf --cov-report=term-missing --cov-report=html -v"
+
+[tool.coverage.run]
+source = ["src/ddf"]
+omit = [
+    "*/site-packages/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if sys.version_info",
+]
+precision = 2
+skip_covered = false
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "openfga.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",  # line-too-long (handled by line-length)
+    "ARG001", # unused-function-argument (can be legitimate for protocol methods)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ddf"]

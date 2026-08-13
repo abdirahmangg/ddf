@@ -1,0 +1,28 @@
+DDF - Dynamic Delegation Fabric
+Copyright 2026 Arkstride
+
+This product includes software developed at Arkstride (https://arkstride.com/).
+
+The use of the name "Arkstride" and the Arkstride logo are reserved by Arkstride.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Third-party dependencies:
+- FastAPI (https://fastapi.tiangolo.com/) - MIT License
+- SQLAlchemy (https://www.sqlalchemy.org/) - MIT License
+- Pydantic (https://docs.pydantic.dev/) - MIT License
+- PyNaCl (https://pynacl.readthedocs.io/) - Apache License 2.0
+- PostgreSQL JDBC Driver (https://jdbc.postgresql.org/) - BSD License
+- OpenFGA (https://openfga.dev/) - Apache License 2.0
+
+See LICENSE for the full Apache License 2.0 text.
