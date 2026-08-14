@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ddf"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 description = "Dynamic Delegation Fabric - Open-source authorization infrastructure for delegated AI-agent authority"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,7 +52,7 @@ dev = [
 ]
 
 openfga = [
-    "openfga==0.4.1",
+    "openfga-sdk==0.4.1",
 ]
 
 [project.scripts]
