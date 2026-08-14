@@ -63,6 +63,10 @@ class AuthorityProof(BaseModel):
     )
     key_id: str = Field(description="Key ID of the signer for verification lookup")
     signature: str = Field(description="Base64-encoded signature of canonical authority document")
+    public_key: str | None = Field(
+        default=None,
+        description="Base64 Ed25519 verification key of the authority issuer",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={

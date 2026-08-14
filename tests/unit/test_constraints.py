@@ -1,8 +1,7 @@
+# ruff: noqa: RUF059
 """Tests for constraint validation and narrowing."""
 
-from datetime import datetime, timezone, timedelta
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from ddf.authority.constraints import ConstraintValidator
 from ddf.authority.models import AuthorityConstraints
@@ -74,7 +73,7 @@ class TestConstraintNarrowing:
 
     def test_expiration_narrowing(self):
         """Test that child must expire before or at parent."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         parent_expires = now + timedelta(hours=2)
         child_expires = now + timedelta(hours=1)
 
@@ -86,7 +85,7 @@ class TestConstraintNarrowing:
 
     def test_expiration_expansion_denied(self):
         """Test that child cannot extend expiration past parent."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         parent_expires = now + timedelta(hours=1)
         child_expires = now + timedelta(hours=2)
 
@@ -128,7 +127,7 @@ class TestConstraintExpiration:
 
     def test_is_expired_true(self):
         """Test that expired constraints return true."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         past = now - timedelta(hours=1)
         constraints = AuthorityConstraints(expires_at=past)
 
@@ -136,7 +135,7 @@ class TestConstraintExpiration:
 
     def test_is_expired_false(self):
         """Test that non-expired constraints return false."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         future = now + timedelta(hours=1)
         constraints = AuthorityConstraints(expires_at=future)
 
@@ -149,7 +148,7 @@ class TestConstraintExpiration:
 
     def test_is_valid_now_in_range(self):
         """Test that authority valid within time range."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         valid_from = now - timedelta(hours=1)
         expires_at = now + timedelta(hours=1)
 
@@ -158,7 +157,7 @@ class TestConstraintExpiration:
 
     def test_is_valid_now_before_start(self):
         """Test that authority invalid before valid_from."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         valid_from = now + timedelta(hours=1)
         expires_at = now + timedelta(hours=2)
 
@@ -167,7 +166,7 @@ class TestConstraintExpiration:
 
     def test_is_valid_now_after_expiry(self):
         """Test that authority invalid after expiry."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         valid_from = now - timedelta(hours=2)
         expires_at = now - timedelta(hours=1)
 
@@ -196,7 +195,7 @@ class TestEffectiveConstraints:
 
     def test_effective_expiration_earliest(self):
         """Test that effective expiration is earliest."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         parent_expires = now + timedelta(hours=2)
         child_expires = now + timedelta(hours=1)
 
@@ -208,7 +207,7 @@ class TestEffectiveConstraints:
 
     def test_effective_constraints_full_chain(self):
         """Test calculating effective constraints across full chain."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         root = AuthorityConstraints(
             max_amount=10000.0,
@@ -237,9 +236,7 @@ class TestEffectiveConstraints:
         assert effective_1.max_amount == 5000.0
         assert set(effective_1.geographies) == {"GB", "US"}
 
-        effective_2 = ConstraintValidator.calculate_effective_constraints(
-            effective_1, level2
-        )
+        effective_2 = ConstraintValidator.calculate_effective_constraints(effective_1, level2)
         assert effective_2.max_amount == 2000.0
         assert effective_2.geographies == ["GB"]
         assert effective_2.delegation_depth_remaining == 1

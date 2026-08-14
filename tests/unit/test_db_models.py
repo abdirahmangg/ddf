@@ -1,11 +1,19 @@
 """Tests for database models and operations."""
 
-from datetime import datetime, timezone
-import pytest
 import uuid
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from datetime import UTC, datetime
 
-from ddf.db.models import Base, Identity, Authority, AuthorityDelegation, AuthorizationLog, Revocation, ProvenanceEvent
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from ddf.db.models import (
+    Authority,
+    AuthorityDelegation,
+    AuthorizationLog,
+    Identity,
+    ProvenanceEvent,
+    Revocation,
+)
 from ddf.settings import get_settings
 
 
@@ -15,15 +23,15 @@ async def test_db():
     # Use in-memory SQLite for testing (or test PostgreSQL)
     settings = get_settings()
     db_url = settings.database_url
-    
+
     # Convert to async URL
     if db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
     engine = create_async_engine(db_url, echo=False)
-    
+
     # Create tables
-    async with engine.begin() as conn:
+    async with engine.begin():
         # Note: In a real test, you'd use a test-specific database
         pass
 
@@ -50,7 +58,7 @@ class TestIdentityModel:
     async def test_create_agent_identity(self, test_db):
         """Test creating an agent identity."""
         agent_id = f"agent:arkstride:buyer-{uuid.uuid4().hex[:8]}"
-        
+
         identity = Identity(
             id=agent_id,
             identity_type="agent",
@@ -72,7 +80,7 @@ class TestIdentityModel:
         """Test creating a user identity."""
         user_email = f"alice-{uuid.uuid4().hex[:8]}@example.com"
         user_id = f"user:{user_email}"
-        
+
         identity = Identity(
             id=user_id,
             identity_type="user",
@@ -93,7 +101,7 @@ class TestAuthorityModel:
     @pytest.mark.asyncio
     async def test_create_authority(self, test_db):
         """Test creating an authority."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         auth_id = f"ddf:authority:{uuid.uuid4().hex[:8]}"
 
         authority = Authority(
@@ -127,7 +135,7 @@ class TestAuthorizationLogModel:
     async def test_log_authorization_decision(self, test_db):
         """Test logging an authorization decision."""
         decision_id = f"ddf:decision:{uuid.uuid4().hex[:8]}"
-        
+
         decision = AuthorizationLog(
             decision_id=decision_id,
             actor="agent:arkstride:buyer-42",
@@ -153,10 +161,10 @@ class TestDelegationModel:
     async def test_create_delegation(self, test_db):
         """Test creating a delegation record."""
         # First create parent and child authorities with unique IDs
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         parent_id = f"ddf:authority:parent-{uuid.uuid4().hex[:8]}"
         child_id = f"ddf:authority:child-{uuid.uuid4().hex[:8]}"
-        
+
         parent_auth = Authority(
             authority_id=parent_id,
             version="ddf/0.1",
@@ -213,9 +221,9 @@ class TestRevocationModel:
     async def test_create_revocation(self, test_db):
         """Test creating a revocation record."""
         # First create an authority
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         auth_id = f"ddf:authority:{uuid.uuid4().hex[:8]}"
-        
+
         authority = Authority(
             authority_id=auth_id,
             version="ddf/0.1",
@@ -232,7 +240,7 @@ class TestRevocationModel:
         )
         test_db.add(authority)
         await test_db.commit()
-        
+
         # Now revoke it
         revocation = Revocation(
             authority_id=auth_id,
@@ -255,7 +263,7 @@ class TestProvenanceEventModel:
     async def test_create_provenance_event(self, test_db):
         """Test creating a provenance event."""
         auth_id = f"ddf:authority:{uuid.uuid4().hex[:8]}"
-        
+
         event = ProvenanceEvent(
             event_type="authority_issued",
             authority_id=auth_id,

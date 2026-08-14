@@ -1,7 +1,5 @@
 """Tests for resource hierarchy and narrowing."""
 
-import pytest
-
 from ddf.authority.resources import ResourceHierarchy
 
 
@@ -27,9 +25,7 @@ class TestResourceNarrowing:
         assert ResourceHierarchy.is_narrower_or_equal(
             "vendor/dell/order/9281", "vendor/dell/order/*"
         )
-        assert ResourceHierarchy.is_narrower_or_equal(
-            "vendor/dell/order/*", "vendor/dell/*"
-        )
+        assert ResourceHierarchy.is_narrower_or_equal("vendor/dell/order/*", "vendor/dell/*")
         assert ResourceHierarchy.is_narrower_or_equal("vendor/dell/*", "vendor/*")
 
     def test_wider_resource_not_narrower(self):
@@ -39,18 +35,14 @@ class TestResourceNarrowing:
 
     def test_sibling_resources_not_narrower(self):
         """Test that sibling resources are not narrower."""
-        assert not ResourceHierarchy.is_narrower_or_equal(
-            "vendor/dell/*", "vendor/ibm/*"
-        )
+        assert not ResourceHierarchy.is_narrower_or_equal("vendor/dell/*", "vendor/ibm/*")
 
     def test_multiple_resource_narrowing(self):
         """Test narrowing with multiple resources."""
         parent_resources = ["vendor/*"]
         child_resources = ["vendor/dell/order/*", "vendor/dell/quote/*"]
 
-        is_valid, unmatched = ResourceHierarchy.narrow_multiple(
-            parent_resources, child_resources
-        )
+        is_valid, unmatched = ResourceHierarchy.narrow_multiple(parent_resources, child_resources)
         assert is_valid
         assert len(unmatched) == 0
 
@@ -59,9 +51,7 @@ class TestResourceNarrowing:
         parent_resources = ["vendor/dell/*"]
         child_resources = ["vendor/dell/order/*", "vendor/ibm/*"]
 
-        is_valid, unmatched = ResourceHierarchy.narrow_multiple(
-            parent_resources, child_resources
-        )
+        is_valid, unmatched = ResourceHierarchy.narrow_multiple(parent_resources, child_resources)
         assert not is_valid
         assert "vendor/ibm/*" in unmatched
 
@@ -70,9 +60,7 @@ class TestResourceNarrowing:
         parent_resources = ["vendor/*", "crm/*"]
         child_resources = ["vendor/dell/*"]
 
-        effective = ResourceHierarchy.calculate_intersection(
-            parent_resources, child_resources
-        )
+        effective = ResourceHierarchy.calculate_intersection(parent_resources, child_resources)
         assert effective == ["vendor/dell/*"]
 
 
@@ -86,26 +74,16 @@ class TestResourceEdgeCases:
 
     def test_trailing_slash(self):
         """Test handling of trailing slashes."""
-        assert ResourceHierarchy.is_narrower_or_equal(
-            "vendor/dell/", "vendor/*"
-        )
+        assert ResourceHierarchy.is_narrower_or_equal("vendor/dell/", "vendor/*")
 
     def test_case_sensitive(self):
         """Test that resource matching is case-sensitive."""
-        assert not ResourceHierarchy.is_narrower_or_equal(
-            "Vendor/Dell/*", "vendor/dell/*"
-        )
+        assert not ResourceHierarchy.is_narrower_or_equal("Vendor/Dell/*", "vendor/dell/*")
 
     def test_exact_prefix_match(self):
         """Test exact prefix matching without wildcard."""
-        assert ResourceHierarchy.is_narrower_or_equal(
-            "vendor/dell", "vendor/dell"
-        )
+        assert ResourceHierarchy.is_narrower_or_equal("vendor/dell", "vendor/dell")
         # A specific resource IS narrower than a wildcard
-        assert ResourceHierarchy.is_narrower_or_equal(
-            "vendor/dell", "vendor/*"
-        )
+        assert ResourceHierarchy.is_narrower_or_equal("vendor/dell", "vendor/*")
         # vendor/dell/* should also match vendor/*
-        assert ResourceHierarchy.is_narrower_or_equal(
-            "vendor/dell/*", "vendor/*"
-        )
+        assert ResourceHierarchy.is_narrower_or_equal("vendor/dell/*", "vendor/*")

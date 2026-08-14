@@ -9,7 +9,6 @@ This module is the heart of DDF's security model.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ddf.authority.constraints import ConstraintValidator
 from ddf.authority.models import Authority, AuthorityConstraints
@@ -26,7 +25,7 @@ class AttenuationResult:
     violations: list[str]
     """Specific violations if attenuation failed."""
 
-    effective_constraints: Optional[AuthorityConstraints]
+    effective_constraints: AuthorityConstraints | None
     """Effective constraints after attenuation (if allowed)."""
 
 
@@ -34,9 +33,7 @@ class AttenuationEngine:
     """Validates and enforces authority attenuation."""
 
     @staticmethod
-    def is_attenuation_valid(
-        parent: Authority, child: Authority
-    ) -> AttenuationResult:
+    def is_attenuation_valid(parent: Authority, child: Authority) -> AttenuationResult:
         """
         Validate that child authority properly attenuates parent.
 
@@ -65,25 +62,19 @@ class AttenuationEngine:
         # Check actions (child must be subset)
         if not set(child.actions).issubset(set(parent.actions)):
             extra_actions = set(child.actions) - set(parent.actions)
-            violations.append(
-                f"AUTHORITY_ACTION_EXPANSION: extra={list(extra_actions)}"
-            )
+            violations.append(f"AUTHORITY_ACTION_EXPANSION: extra={list(extra_actions)}")
 
         # Check resources (child must be narrower or equal)
         resources_valid, unmatched_resources = ResourceHierarchy.narrow_multiple(
             parent.resources, child.resources
         )
         if not resources_valid:
-            violations.append(
-                f"AUTHORITY_RESOURCE_EXPANSION: unmatched={unmatched_resources}"
-            )
+            violations.append(f"AUTHORITY_RESOURCE_EXPANSION: unmatched={unmatched_resources}")
 
         # Check purposes (child must be subset)
         if not set(child.purposes).issubset(set(parent.purposes)):
             extra_purposes = set(child.purposes) - set(parent.purposes)
-            violations.append(
-                f"AUTHORITY_PURPOSE_EXPANSION: extra={list(extra_purposes)}"
-            )
+            violations.append(f"AUTHORITY_PURPOSE_EXPANSION: extra={list(extra_purposes)}")
 
         # Check constraints
         constraints_valid, constraint_violations = ConstraintValidator.is_narrower_or_equal(
@@ -150,9 +141,7 @@ class AttenuationEngine:
 
             if not result.allowed:
                 # Augment violations with chain position
-                violations = [
-                    f"[delegation {i - 1} → {i}] {v}" for v in result.violations
-                ]
+                violations = [f"[delegation {i - 1} → {i}] {v}" for v in result.violations]
                 return AttenuationResult(
                     allowed=False,
                     violations=violations,

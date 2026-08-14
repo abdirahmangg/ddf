@@ -1,8 +1,5 @@
 """Request and response models for delegation API endpoints."""
 
-from datetime import datetime
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 from ddf.authority.models import AuthorityConstraints
@@ -11,19 +8,15 @@ from ddf.authority.models import AuthorityConstraints
 class CreateGrantRequest(BaseModel):
     """Request to create a root authority grant."""
 
-    actor: str = Field(
-        description="Actor ID receiving the authority (e.g., 'agent:buyer-42')"
-    )
+    actor: str = Field(description="Actor ID receiving the authority (e.g., 'agent:buyer-42')")
     actions: list[str] = Field(description="Permitted actions (e.g., ['purchase'])")
-    resources: list[str] = Field(
-        description="Permitted resources (e.g., ['vendor/dell/*'])"
-    )
+    resources: list[str] = Field(description="Permitted resources (e.g., ['vendor/dell/*'])")
     purposes: list[str] = Field(description="Permitted purposes (e.g., ['procurement'])")
-    constraints: Optional[AuthorityConstraints] = Field(
+    constraints: AuthorityConstraints | None = Field(
         default=None, description="Optional scope-limiting constraints"
     )
     expires_in_hours: int = Field(default=24, description="Hours until expiration")
-    reason: Optional[str] = Field(default=None, description="Reason for the grant")
+    reason: str | None = Field(default=None, description="Reason for the grant")
 
 
 class CreateDelegationRequest(BaseModel):
@@ -32,19 +25,19 @@ class CreateDelegationRequest(BaseModel):
     delegated_to: str = Field(
         description="Actor ID receiving the delegated authority (e.g., 'agent:delegate-42')"
     )
-    actions: Optional[list[str]] = Field(
+    actions: list[str] | None = Field(
         default=None, description="Actions to delegate (defaults to parent's actions)"
     )
-    resources: Optional[list[str]] = Field(
+    resources: list[str] | None = Field(
         default=None, description="Resources to delegate (defaults to parent's resources)"
     )
-    purposes: Optional[list[str]] = Field(
+    purposes: list[str] | None = Field(
         default=None, description="Purposes to delegate (defaults to parent's purposes)"
     )
-    constraints: Optional[AuthorityConstraints] = Field(
+    constraints: AuthorityConstraints | None = Field(
         default=None, description="Optional scope-limiting constraints"
     )
-    reason: Optional[str] = Field(default=None, description="Reason for delegation")
+    reason: str | None = Field(default=None, description="Reason for delegation")
 
 
 class AuthorityResponse(BaseModel):
@@ -61,11 +54,9 @@ class AuthorityResponse(BaseModel):
     constraints: AuthorityConstraints = Field(description="Scope-limiting constraints")
     issued_at: str = Field(description="When issued (ISO 8601)")
     expires_at: str = Field(description="When expires (ISO 8601)")
-    parent_authority_id: Optional[str] = Field(
-        description="Parent authority (if delegated)"
-    )
+    parent_authority_id: str | None = Field(description="Parent authority (if delegated)")
     holder_public_key: str = Field(description="Holder's public key (base64)")
-    proof: Optional[dict] = Field(description="Cryptographic proof")
+    proof: dict | None = Field(description="Cryptographic proof")
 
 
 class GrantResponse(BaseModel):

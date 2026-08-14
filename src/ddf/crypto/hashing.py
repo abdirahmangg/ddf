@@ -4,7 +4,6 @@ All hashing uses SHA-256 for provenance and identification.
 """
 
 import hashlib
-from typing import Union
 
 
 class Hasher:

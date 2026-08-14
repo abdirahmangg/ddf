@@ -1,3 +1,4 @@
+# ruff: noqa: ARG004
 """Resource hierarchy and narrowing logic for DDF.
 
 Resources in DDF use hierarchical identifiers:
@@ -8,8 +9,6 @@ Resources in DDF use hierarchical identifiers:
 
 A resource is "narrower" if it matches fewer resources.
 """
-
-from typing import Optional
 
 
 class ResourceHierarchy:

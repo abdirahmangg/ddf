@@ -1,18 +1,19 @@
+# ruff: noqa: B008, B904
 """API endpoints for authority grants and delegations."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ddf.api.dependencies import get_db_session, get_settings_dep
-from ddf.api.routes.grants import (
-    CreateGrantRequest,
-    CreateDelegationRequest,
-    GrantResponse,
-    DelegationResponse,
-    AuthorityResponse,
-)
-from ddf.delegation.service import GrantService, DelegationService
 from ddf.api.errors import AttenuationViolationError
+from ddf.api.routes.grants import (
+    AuthorityResponse,
+    CreateDelegationRequest,
+    CreateGrantRequest,
+    DelegationResponse,
+    GrantResponse,
+)
+from ddf.delegation.service import DelegationService, GrantService
 from ddf.settings import Settings
 
 router = APIRouter(prefix="/v1", tags=["authorities"])
@@ -78,7 +79,7 @@ async def create_grant(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create grant: {str(e)}",
+            detail=f"Failed to create grant: {e!s}",
         )
 
 
@@ -139,7 +140,7 @@ async def create_delegation(
     except AttenuationViolationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Delegation violates attenuation: {str(e)}",
+            detail=f"Delegation violates attenuation: {e!s}",
         )
     except ValueError as e:
         if "not found" in str(e).lower():
@@ -154,5 +155,5 @@ async def create_delegation(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create delegation: {str(e)}",
+            detail=f"Failed to create delegation: {e!s}",
         )

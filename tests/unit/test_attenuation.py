@@ -1,6 +1,6 @@
 """Tests for authority attenuation engine."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -14,7 +14,7 @@ class TestAttenuationValidation:
     @pytest.fixture
     def base_parent(self) -> Authority:
         """Create a base parent authority for testing."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return Authority(
             actor="agent:planner",
             sponsor="user:alice@example.com",
@@ -35,7 +35,7 @@ class TestAttenuationValidation:
 
     def test_valid_narrowing(self, base_parent):
         """Test that valid narrowing is accepted."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         child = Authority(
             actor="agent:procurement",
             sponsor="user:alice@example.com",
@@ -67,7 +67,7 @@ class TestAttenuationValidation:
 
     def test_action_expansion_denied(self, base_parent):
         """Test that expanding actions is denied."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         child = Authority(
             actor="agent:procurement",
             sponsor="user:alice@example.com",
@@ -95,7 +95,7 @@ class TestAttenuationValidation:
 
     def test_resource_expansion_denied(self, base_parent):
         """Test that expanding resources is denied."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         child = Authority(
             actor="agent:procurement",
             sponsor="user:alice@example.com",
@@ -123,7 +123,7 @@ class TestAttenuationValidation:
 
     def test_purpose_expansion_denied(self, base_parent):
         """Test that expanding purposes is denied."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         child = Authority(
             actor="agent:procurement",
             sponsor="user:alice@example.com",
@@ -151,7 +151,7 @@ class TestAttenuationValidation:
 
     def test_amount_expansion_denied(self, base_parent):
         """Test that expanding max_amount is denied."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         child = Authority(
             actor="agent:procurement",
             sponsor="user:alice@example.com",
@@ -179,7 +179,7 @@ class TestAttenuationValidation:
 
     def test_geography_expansion_denied(self, base_parent):
         """Test that expanding geographies is denied."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         child = Authority(
             actor="agent:procurement",
             sponsor="user:alice@example.com",
@@ -212,7 +212,7 @@ class TestAttenuationChain:
 
     def test_valid_three_level_chain(self):
         """Test valid attenuation across three levels."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         root = Authority(
             actor="user:alice@example.com",
@@ -279,7 +279,7 @@ class TestAttenuationChain:
 
     def test_chain_with_violation_at_level_2(self):
         """Test chain validation catches violation at level 2."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         root = Authority(
             actor="user:alice@example.com",
@@ -348,7 +348,7 @@ class TestAttenuationChain:
 
     def test_single_authority_chain(self):
         """Test that single authority (root) chain is valid."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         root = Authority(
             actor="user:alice@example.com",

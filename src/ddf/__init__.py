@@ -1,6 +1,6 @@
 """DDF - Dynamic Delegation Fabric."""
 
-__version__ = "0.1.1"
+__version__ = "1.0.0rc2"
 __author__ = "Arkstride"
 
-__all__ = ["__version__", "__author__"]
+__all__ = ["__author__", "__version__"]
