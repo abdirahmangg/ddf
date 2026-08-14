@@ -1,7 +1,7 @@
 """Tests for authorization service."""
 
-from datetime import datetime, timedelta, timezone
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from ddf.authority.models import AuthorizationRequest, AuthorityConstraints
+from ddf.authority.models import AuthorityConstraints, AuthorizationRequest
 from ddf.authorization.service import AuthorizationService
 from ddf.delegation.service import GrantService
 from ddf.settings import get_settings
@@ -213,13 +213,11 @@ class TestAuthorizationService:
         )
 
         result = await test_db.execute(
-            select(AuthorityDB).where(
-                AuthorityDB.authority_id == authority.authority_id
-            )
+            select(AuthorityDB).where(AuthorityDB.authority_id == authority.authority_id)
         )
         stored_authority = result.scalar_one()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         stored_authority.issued_at = now - timedelta(hours=3)
         stored_authority.expires_at = now - timedelta(hours=1)

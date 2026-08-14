@@ -12,6 +12,6 @@ __all__ = [
     "Authority",
     "AuthorityConstraints",
     "AuthorityProof",
-    "AuthorizationRequest",
     "AuthorizationDecision",
+    "AuthorizationRequest",
 ]

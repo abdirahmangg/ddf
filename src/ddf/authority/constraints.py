@@ -1,11 +1,11 @@
+# ruff: noqa: SIM102, SIM103
 """Constraint validation for DDF authorities.
 
 Constraints limit the scope of what an authority permits.
 A child authority cannot expand constraints beyond its parent.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
 
 from ddf.authority.models import AuthorityConstraints
 
@@ -44,8 +44,7 @@ class ConstraintValidator:
             and child.max_amount > parent.max_amount
         ):
             violations.append(
-                f"AUTHORITY_AMOUNT_EXPANSION: child={child.max_amount}, "
-                f"parent={parent.max_amount}"
+                f"AUTHORITY_AMOUNT_EXPANSION: child={child.max_amount}, parent={parent.max_amount}"
             )
 
         # Check currency (must match if both specified)
@@ -55,8 +54,7 @@ class ConstraintValidator:
             and child.currency != parent.currency
         ):
             violations.append(
-                f"AUTHORITY_CURRENCY_MISMATCH: child={child.currency}, "
-                f"parent={parent.currency}"
+                f"AUTHORITY_CURRENCY_MISMATCH: child={child.currency}, parent={parent.currency}"
             )
 
         # Check geographies (child must be subset)
@@ -65,9 +63,7 @@ class ConstraintValidator:
             parent_set = set(parent.geographies)
             if not child_set.issubset(parent_set):
                 extra = child_set - parent_set
-                violations.append(
-                    f"AUTHORITY_GEOGRAPHY_EXPANSION: extra={list(extra)}"
-                )
+                violations.append(f"AUTHORITY_GEOGRAPHY_EXPANSION: extra={list(extra)}")
 
         # Check audiences (child must be subset)
         if parent.audiences is not None and child.audiences is not None:
@@ -75,9 +71,7 @@ class ConstraintValidator:
             parent_set = set(parent.audiences)
             if not child_set.issubset(parent_set):
                 extra = child_set - parent_set
-                violations.append(
-                    f"AUTHORITY_AUDIENCE_EXPANSION: extra={list(extra)}"
-                )
+                violations.append(f"AUTHORITY_AUDIENCE_EXPANSION: extra={list(extra)}")
 
         # Check valid_from (child must be after or equal to parent)
         if (
@@ -97,8 +91,7 @@ class ConstraintValidator:
             and child.expires_at > parent.expires_at
         ):
             violations.append(
-                f"AUTHORITY_EXPIRY_EXPANSION: "
-                f"child={child.expires_at}, parent={parent.expires_at}"
+                f"AUTHORITY_EXPIRY_EXPANSION: child={child.expires_at}, parent={parent.expires_at}"
             )
 
         # Check delegation_depth_remaining
@@ -117,7 +110,7 @@ class ConstraintValidator:
         return len(violations) == 0, violations
 
     @staticmethod
-    def is_expired(constraints: AuthorityConstraints, now: Optional[datetime] = None) -> bool:
+    def is_expired(constraints: AuthorityConstraints, now: datetime | None = None) -> bool:
         """
         Check if constraints have expired.
 
@@ -132,12 +125,12 @@ class ConstraintValidator:
             return False
 
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         return now > constraints.expires_at
 
     @staticmethod
-    def is_valid_now(constraints: AuthorityConstraints, now: Optional[datetime] = None) -> bool:
+    def is_valid_now(constraints: AuthorityConstraints, now: datetime | None = None) -> bool:
         """
         Check if constraints are valid at the given time.
 
@@ -149,7 +142,7 @@ class ConstraintValidator:
             True if valid (between valid_from and expires_at)
         """
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         # Check valid_from
         if constraints.valid_from is not None and now < constraints.valid_from:

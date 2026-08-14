@@ -1,14 +1,13 @@
 """Tests for grant and delegation services."""
 
-from datetime import datetime, timezone, timedelta
-import pytest
 import uuid
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-from ddf.db.models import Base, Authority as AuthorityDB
-from ddf.delegation.service import GrantService, DelegationService
-from ddf.authority.models import Authority, AuthorityConstraints
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from ddf.api.errors import AttenuationViolationError
+from ddf.authority.models import AuthorityConstraints
+from ddf.delegation.service import DelegationService, GrantService
 from ddf.settings import get_settings
 
 

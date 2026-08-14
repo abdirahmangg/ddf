@@ -1,14 +1,15 @@
 """Tests for authority models."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timezone, timedelta
 
 from ddf.authority.models import (
     Authority,
     AuthorityConstraints,
     AuthorityProof,
-    AuthorizationRequest,
     AuthorizationDecision,
+    AuthorizationRequest,
 )
 
 
@@ -39,7 +40,7 @@ def test_authority_proof_valid():
 
 def test_authority_valid():
     """Test creating valid authority."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires = now + timedelta(hours=1)
 
     authority = Authority(
@@ -62,7 +63,7 @@ def test_authority_valid():
 
 def test_authority_expires_after_issued():
     """Test that expires_at must be after issued_at."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     with pytest.raises(ValueError, match="expires_at must be after issued_at"):
         Authority(
@@ -80,7 +81,7 @@ def test_authority_expires_after_issued():
 
 def test_authority_empty_path_invalid():
     """Test that authority path cannot be empty."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires = now + timedelta(hours=1)
 
     with pytest.raises(ValueError, match="authority_path cannot be empty"):
@@ -115,7 +116,7 @@ def test_authorization_request_valid():
 
 def test_authorization_decision_valid():
     """Test creating valid authorization decision."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     decision = AuthorizationDecision(
         decision="ALLOW",
@@ -137,7 +138,7 @@ def test_authorization_decision_valid():
 
 def test_authorization_decision_deny():
     """Test creating DENY decision."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     decision = AuthorizationDecision(
         decision="DENY",

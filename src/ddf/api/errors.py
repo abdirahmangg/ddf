@@ -1,6 +1,7 @@
+# ruff: noqa: N818
 """API error models and exception handlers."""
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -8,13 +9,9 @@ from pydantic import BaseModel, Field
 class ErrorDetail(BaseModel):
     """Detailed information about an error."""
 
-    code: str = Field(
-        description="Machine-readable error code"
-    )
-    message: str = Field(
-        description="Human-readable error message"
-    )
-    details: Optional[dict[str, Any]] = Field(
+    code: str = Field(description="Machine-readable error code")
+    message: str = Field(description="Human-readable error message")
+    details: dict[str, Any] | None = Field(
         default=None,
         description="Additional context-specific details",
     )
@@ -34,7 +31,7 @@ class HTTPException(Exception):
         status_code: int,
         error_code: str,
         message: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize HTTP exception.
 
@@ -62,6 +59,7 @@ class HTTPException(Exception):
 
 
 # Specific error types
+
 
 class AuthorityNotFoundError(HTTPException):
     """Authority does not exist."""
@@ -102,7 +100,7 @@ class AuthorityRevokedError(HTTPException):
 class AttenuationViolationError(HTTPException):
     """Child authority violates attenuation constraints."""
 
-    def __init__(self, violations: list[str], details: Optional[dict[str, Any]] = None):
+    def __init__(self, violations: list[str], details: dict[str, Any] | None = None):
         msg = f"Authority attenuation violation: {', '.join(violations)}"
         super().__init__(
             status_code=403,
@@ -127,7 +125,7 @@ class ProofOfPossessionError(HTTPException):
 class InvalidAuthorityPathError(HTTPException):
     """Authority path is invalid or tampered."""
 
-    def __init__(self, details: Optional[dict[str, Any]] = None):
+    def __init__(self, details: dict[str, Any] | None = None):
         super().__init__(
             status_code=403,
             error_code="INVALID_AUTHORITY_PATH",
@@ -151,7 +149,7 @@ class SignatureVerificationError(HTTPException):
 class AuthorizationDeniedError(HTTPException):
     """Authorization request was denied."""
 
-    def __init__(self, reason: str, details: Optional[dict[str, Any]] = None):
+    def __init__(self, reason: str, details: dict[str, Any] | None = None):
         super().__init__(
             status_code=403,
             error_code="AUTHORIZATION_DENIED",
@@ -175,7 +173,7 @@ class InvalidIdentityError(HTTPException):
 class ValidationError(HTTPException):
     """Request validation failed."""
 
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             status_code=400,
             error_code="VALIDATION_ERROR",

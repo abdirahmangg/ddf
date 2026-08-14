@@ -1,12 +1,12 @@
 """Tests for cryptographic signing and verification."""
 
-from datetime import datetime, timezone, timedelta
 import base64
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from ddf.api.errors import SignatureVerificationError
-from ddf.authority.models import Authority, AuthorityConstraints, AuthorityProof
+from ddf.authority.models import Authority, AuthorityProof
 from ddf.crypto.canonical import CanonicalSerializer
 from ddf.crypto.hashing import Hasher
 from ddf.crypto.signing import Ed25519Key, Verifier
@@ -42,7 +42,7 @@ class TestCanonicalSerialization:
 
     def test_authority_serialization_excludes_proof(self):
         """Test that authority serialization excludes the proof field."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         authority_dict = {
             "version": "ddf/0.1",
             "authority_id": "ddf:authority:test",
@@ -237,7 +237,7 @@ class TestAuthorityVerification:
 
     def test_verify_signed_authority(self):
         """Test verifying a signed authority."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         key = Ed25519Key.generate()
 
         # Create authority
@@ -274,7 +274,7 @@ class TestAuthorityVerification:
 
     def test_verify_unsigned_authority_fails(self):
         """Test that unsigned authority fails verification."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         authority = Authority(
             actor="agent:test",
@@ -294,7 +294,7 @@ class TestAuthorityVerification:
 
     def test_verify_tampered_authority_fails(self):
         """Test that tampered authority fails verification."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         key = Ed25519Key.generate()
 
         # Create and sign authority

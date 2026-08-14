@@ -231,16 +231,18 @@ class AuthorizationService:
         if authority.proof is None:
             return
 
-        if not authority.holder_public_key:
+        verification_key = authority.proof.public_key or authority.holder_public_key
+
+        if not verification_key:
             raise SignatureVerificationError("signed authority has no verification key")
 
-        payload = authority.model_dump()
+        payload = authority.model_dump(mode="json")
         payload["proof"] = None
 
         canonical = CanonicalSerializer.serialize_authority_for_signing(payload)
 
         try:
-            verify_key = VerifyKey(base64.b64decode(authority.holder_public_key))
+            verify_key = VerifyKey(base64.b64decode(verification_key))
 
             verify_key.verify(
                 canonical,

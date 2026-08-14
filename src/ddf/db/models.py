@@ -1,24 +1,17 @@
 """DDF database models using SQLAlchemy 2.0+."""
 
-from datetime import datetime, timezone
-from typing import Optional
+import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
-    UUID,
-    Column,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
-    Integer,
     String,
     Text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-import uuid
-
-from ddf.authority.models import AuthorizationDecision
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -38,25 +31,25 @@ class Identity(Base):
     identity_type: Mapped[str] = mapped_column(String(50))
     """Type: 'agent', 'user', 'service'"""
 
-    display_name: Mapped[Optional[str]] = mapped_column(String(256))
+    display_name: Mapped[str | None] = mapped_column(String(256))
     """Human-readable name"""
 
-    public_key: Mapped[Optional[str]] = mapped_column(Text)
+    public_key: Mapped[str | None] = mapped_column(Text)
     """Base64-encoded Ed25519 public key (if applicable)"""
 
-    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON)
     """Additional metadata (email, organization, etc.)"""
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     """When this identity was registered"""
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
     """When this identity was last updated"""
 
@@ -104,7 +97,7 @@ class Authority(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     """When this authority expires"""
 
-    parent_authority_id: Mapped[Optional[str]] = mapped_column(
+    parent_authority_id: Mapped[str | None] = mapped_column(
         String(256),
         ForeignKey("authorities.authority_id"),
         nullable=True,
@@ -119,7 +112,7 @@ class Authority(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     """When this authority was stored in database"""
 
@@ -161,15 +154,15 @@ class AuthorityDelegation(Base):
     delegated_to: Mapped[str] = mapped_column(String(256), index=True)
     """Actor receiving the delegated authority"""
 
-    reason: Mapped[Optional[str]] = mapped_column(Text)
+    reason: Mapped[str | None] = mapped_column(Text)
     """Reason for delegation"""
 
-    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON)
     """Additional delegation metadata"""
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     """When delegation was performed"""
 
@@ -197,24 +190,24 @@ class AuthorizationLog(Base):
     resource: Mapped[str] = mapped_column(String(512), index=True)
     """Resource being accessed"""
 
-    purpose: Mapped[Optional[str]] = mapped_column(String(256))
+    purpose: Mapped[str | None] = mapped_column(String(256))
     """Purpose of the access"""
 
     decision: Mapped[str] = mapped_column(String(50))
     """ALLOW or DENY"""
 
-    authority_id: Mapped[Optional[str]] = mapped_column(String(256))
+    authority_id: Mapped[str | None] = mapped_column(String(256))
     """Authority used (if allowed)"""
 
     reasons: Mapped[list[str]] = mapped_column(JSON, default=[])
     """Reasons for decision"""
 
-    context_json: Mapped[Optional[dict]] = mapped_column(JSON)
+    context_json: Mapped[dict | None] = mapped_column(JSON)
     """Additional context"""
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         index=True,
     )
     """When decision was made"""
@@ -249,7 +242,7 @@ class Revocation(Base):
     actor: Mapped[str] = mapped_column(String(256), index=True)
     """Actor performing the revocation"""
 
-    reason: Mapped[Optional[str]] = mapped_column(Text)
+    reason: Mapped[str | None] = mapped_column(Text)
     """Reason for revocation"""
 
     cascades: Mapped[bool] = mapped_column(default=True)
@@ -257,7 +250,7 @@ class Revocation(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         index=True,
     )
     """When revocation was performed"""
@@ -283,30 +276,30 @@ class ProvenanceEvent(Base):
     event_type: Mapped[str] = mapped_column(String(50), index=True)
     """Event type (authority_issued, authority_delegated, authority_revoked, authorization_decision, etc.)"""
 
-    authority_id: Mapped[Optional[str]] = mapped_column(String(256), index=True)
+    authority_id: Mapped[str | None] = mapped_column(String(256), index=True)
     """Authority involved (if applicable)"""
 
-    actor: Mapped[Optional[str]] = mapped_column(String(256), index=True)
+    actor: Mapped[str | None] = mapped_column(String(256), index=True)
     """Actor involved"""
 
-    sponsor: Mapped[Optional[str]] = mapped_column(String(256))
+    sponsor: Mapped[str | None] = mapped_column(String(256))
     """Sponsor involved (if applicable)"""
 
-    action: Mapped[Optional[str]] = mapped_column(String(256))
+    action: Mapped[str | None] = mapped_column(String(256))
     """Action being performed"""
 
-    resource: Mapped[Optional[str]] = mapped_column(String(512))
+    resource: Mapped[str | None] = mapped_column(String(512))
     """Resource involved"""
 
     details_json: Mapped[dict] = mapped_column(JSON, default={})
     """Event-specific details"""
 
-    content_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    content_hash: Mapped[str | None] = mapped_column(String(64))
     """SHA-256 hash of event content (for tamper detection)"""
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         index=True,
     )
     """When event occurred"""

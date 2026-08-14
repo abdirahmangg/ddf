@@ -4,7 +4,6 @@ Combines canonical serialization, hashing, and Ed25519 verification.
 """
 
 from datetime import datetime
-from typing import Any
 
 from ddf.api.errors import SignatureVerificationError
 from ddf.authority.models import Authority
@@ -33,22 +32,18 @@ class AuthorityVerifier:
             raise SignatureVerificationError("Authority has no proof/signature")
 
         if authority.proof.algorithm != "Ed25519":
-            raise SignatureVerificationError(
-                f"Unsupported algorithm: {authority.proof.algorithm}"
-            )
+            raise SignatureVerificationError(f"Unsupported algorithm: {authority.proof.algorithm}")
 
         # Get the canonical bytes (without proof) for verification
         authority_dict = authority.model_dump()
-        
+
         # Convert datetime objects to ISO format strings for JSON serialization
         if isinstance(authority_dict.get("issued_at"), datetime):
             authority_dict["issued_at"] = authority_dict["issued_at"].isoformat()
         if isinstance(authority_dict.get("expires_at"), datetime):
             authority_dict["expires_at"] = authority_dict["expires_at"].isoformat()
-        
-        canonical_bytes = CanonicalSerializer.serialize_authority_for_signing(
-            authority_dict
-        )
+
+        canonical_bytes = CanonicalSerializer.serialize_authority_for_signing(authority_dict)
 
         # Verify the signature
         return Verifier.verify_signature(

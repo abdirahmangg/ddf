@@ -7,8 +7,6 @@ Do not implement custom cryptography.
 """
 
 import base64
-import os
-from typing import Optional
 
 import nacl.exceptions
 import nacl.signing
@@ -20,7 +18,7 @@ from ddf.api.errors import SignatureVerificationError
 class Ed25519Key:
     """Represents an Ed25519 signing key pair."""
 
-    def __init__(self, signing_key: nacl.signing.SigningKey, key_id: Optional[str] = None):
+    def __init__(self, signing_key: nacl.signing.SigningKey, key_id: str | None = None):
         """
         Initialize from a PyNaCl signing key.
 
@@ -67,7 +65,7 @@ class Ed25519Key:
         return base64.b64encode(signature).decode("utf-8")
 
     @staticmethod
-    def generate(key_id: Optional[str] = None) -> "Ed25519Key":
+    def generate(key_id: str | None = None) -> "Ed25519Key":
         """
         Generate a new Ed25519 key pair.
 
@@ -81,7 +79,7 @@ class Ed25519Key:
         return Ed25519Key(signing_key, key_id)
 
     @staticmethod
-    def from_private_bytes(private_bytes: bytes, key_id: Optional[str] = None) -> "Ed25519Key":
+    def from_private_bytes(private_bytes: bytes, key_id: str | None = None) -> "Ed25519Key":
         """
         Load from private key bytes.
 
