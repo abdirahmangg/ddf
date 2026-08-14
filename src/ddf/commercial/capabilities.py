@@ -51,6 +51,11 @@ async def mint_capability(
     if mapping is None or mapping.tenant_id != principal.tenant_id:
         raise ValueError("authority not found in tenant")
 
+    if principal.subject != request.actor:
+        raise ValueError(
+            "authenticated principal does not match capability actor"
+        )
+
     if await RevocationService.is_effectively_revoked(
         session,
         request.authority_id,

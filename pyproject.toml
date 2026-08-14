@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ddf"
-version = "1.0.0rc2"
+version = "1.0.0rc3"
 description = "Dynamic Delegation Fabric - Open-source authorization infrastructure for delegated AI-agent authority"
 readme = "README.md"
 requires-python = ">=3.12"
