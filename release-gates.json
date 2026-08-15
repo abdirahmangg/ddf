@@ -1,0 +1,45 @@
+{
+  "stable_release": "v1.0.0",
+  "required_external_gates": [
+    {
+      "id": "independent_pentest",
+      "status": "pending",
+      "evidence": "release-evidence/pentest-report.pdf"
+    },
+    {
+      "id": "legal_review",
+      "status": "pending",
+      "evidence": "release-evidence/legal-approval.txt"
+    },
+    {
+      "id": "load_ha_chaos",
+      "status": "pending",
+      "evidence": "release-evidence/load-ha-chaos.json"
+    },
+    {
+      "id": "backup_restore_drill",
+      "status": "pending",
+      "evidence": "release-evidence/backup-restore.txt"
+    },
+    {
+      "id": "key_compromise_drill",
+      "status": "pending",
+      "evidence": "release-evidence/key-compromise-drill.txt"
+    },
+    {
+      "id": "release_signing_sbom",
+      "status": "pending",
+      "evidence": "release-evidence/release-signing-sbom.txt"
+    },
+    {
+      "id": "incident_response_owner",
+      "status": "pending",
+      "evidence": "release-evidence/incident-owner.txt"
+    },
+    {
+      "id": "observed_slo_evidence",
+      "status": "pending",
+      "evidence": "release-evidence/slo-observation.json"
+    }
+  ]
+}

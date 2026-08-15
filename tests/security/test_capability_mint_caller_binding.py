@@ -23,7 +23,7 @@ async def test_mint_capability_rejects_authenticated_principal_mismatch():
 
     with pytest.raises(
         ValueError,
-        match="authenticated principal does not match capability actor",
+        match="authenticated principal is not authorized to mint for capability actor",
     ):
         await mint_capability(
             FakeSession(),

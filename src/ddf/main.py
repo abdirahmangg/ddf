@@ -21,6 +21,7 @@ from ddf.api.routes.revocation_endpoints import (
     router as revocation_router,
 )
 from ddf.commercial.api import install_commercial
+from ddf.commercial.production_readiness import install_production_readiness
 from ddf.settings import get_settings
 
 
@@ -82,3 +83,6 @@ def create_app() -> FastAPI:
 
 app = create_app()
 install_commercial(app)
+
+
+install_production_readiness(app)

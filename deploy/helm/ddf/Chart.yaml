@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ddf
+description: Arkstride Dynamic Delegation Fabric
+type: application
+version: 0.1.0
+appVersion: "1.0.0rc3"

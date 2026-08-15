@@ -27,6 +27,7 @@ from ddf.commercial.models import (
     ConsumeCapabilityRequest,
     MintCapabilityRequest,
 )
+from ddf.commercial.production_readiness import capability_caller_allowed
 from ddf.revocation.service import RevocationService
 
 
@@ -51,9 +52,13 @@ async def mint_capability(
     if mapping is None or mapping.tenant_id != principal.tenant_id:
         raise ValueError("authority not found in tenant")
 
-    if principal.subject != request.actor:
+    if not capability_caller_allowed(
+        principal,
+        request.actor,
+    ):
         raise ValueError(
-            "authenticated principal does not match capability actor"
+            "authenticated principal is not authorized "
+            "to mint for capability actor"
         )
 
     if await RevocationService.is_effectively_revoked(

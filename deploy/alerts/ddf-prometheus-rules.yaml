@@ -1,0 +1,28 @@
+groups:
+  - name: ddf
+    rules:
+      - alert: DDFHigh5xxRate
+        expr: |
+          sum(rate(ddf_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(ddf_http_requests_total[5m])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: DDF 5xx rate exceeds 5%
+
+      - alert: DDFHighLatency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le) (
+              rate(ddf_http_request_duration_seconds_bucket[10m])
+            )
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: DDF p99 latency exceeds two seconds
