@@ -1,0 +1,10 @@
+{
+  "gate_id": "release_signing_sbom",
+  "status": "pending",
+  "reviewer": "",
+  "approved_at": "",
+  "commit": "",
+  "summary": "",
+  "artifacts": [],
+  "created_at": "2026-08-15T00:22:02.821552+00:00"
+}

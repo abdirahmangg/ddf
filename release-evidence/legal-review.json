@@ -1,0 +1,10 @@
+{
+  "gate_id": "legal_review",
+  "status": "pending",
+  "reviewer": "",
+  "approved_at": "",
+  "commit": "",
+  "summary": "",
+  "artifacts": [],
+  "created_at": "2026-08-15T00:22:02.373870+00:00"
+}

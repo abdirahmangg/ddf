@@ -1,0 +1,17 @@
+{
+  "gate_id": "incident_response_owner",
+  "status": "pending",
+  "reviewer": "",
+  "approved_at": "",
+  "commit": "",
+  "summary": "",
+  "artifacts": [],
+  "created_at": "2026-08-15T00:22:02.936388+00:00",
+  "required_fields": {
+    "primary_owner": "",
+    "secondary_owner": "",
+    "security_escalation": "",
+    "operations_escalation": "",
+    "communication_owner": ""
+  }
+}

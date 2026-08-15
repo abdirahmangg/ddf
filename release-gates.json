@@ -4,12 +4,12 @@
     {
       "id": "independent_pentest",
       "status": "pending",
-      "evidence": "release-evidence/pentest-report.pdf"
+      "evidence": "release-evidence/pentest.json"
     },
     {
       "id": "legal_review",
       "status": "pending",
-      "evidence": "release-evidence/legal-approval.txt"
+      "evidence": "release-evidence/legal-review.json"
     },
     {
       "id": "load_ha_chaos",
@@ -19,27 +19,32 @@
     {
       "id": "backup_restore_drill",
       "status": "pending",
-      "evidence": "release-evidence/backup-restore.txt"
+      "evidence": "release-evidence/backup-restore.json"
     },
     {
       "id": "key_compromise_drill",
       "status": "pending",
-      "evidence": "release-evidence/key-compromise-drill.txt"
+      "evidence": "release-evidence/key-compromise.json"
     },
     {
       "id": "release_signing_sbom",
       "status": "pending",
-      "evidence": "release-evidence/release-signing-sbom.txt"
+      "evidence": "release-evidence/release-signing-sbom.json"
     },
     {
       "id": "incident_response_owner",
       "status": "pending",
-      "evidence": "release-evidence/incident-owner.txt"
+      "evidence": "release-evidence/incident-owner.json"
     },
     {
       "id": "observed_slo_evidence",
       "status": "pending",
       "evidence": "release-evidence/slo-observation.json"
+    },
+    {
+      "id": "compliance_evidence",
+      "status": "pending",
+      "evidence": "release-evidence/compliance.json"
     }
   ]
 }
