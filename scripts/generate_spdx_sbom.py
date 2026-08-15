@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "release-evidence/ddf.spdx.json"
 

@@ -3,9 +3,9 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "DDF stable-release candidate SBOM",
-  "documentNamespace": "https://arkstride.com/ddf/spdx/b0c986af7889ffec5f0925bcdfa5645db844a6f9",
+  "documentNamespace": "https://arkstride.com/ddf/spdx/f70e637b989b9ebcaa2ff434be242a62595cc9e1",
   "creationInfo": {
-    "created": "2026-08-15T00:22:24Z",
+    "created": "2026-08-15T00:24:05Z",
     "creators": [
       "Tool: DDF generate_spdx_sbom.py"
     ]
