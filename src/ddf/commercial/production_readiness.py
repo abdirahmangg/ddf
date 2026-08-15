@@ -2220,6 +2220,27 @@ async def export_evidence_bundle(
 # ============================================================
 
 
+async def _probe_openfga_readiness() -> bool | None:
+    """Probe configured OpenFGA HTTP health for dependency readiness."""
+    base_url = (
+        os.getenv("DDF_OPENFGA_URL")
+        or os.getenv("DDF_OPENFGA_API_URL")
+        or os.getenv("OPENFGA_API_URL")
+    )
+
+    if not base_url:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(
+                f"{base_url.rstrip('/')}/healthz"
+            )
+        return response.is_success
+    except (httpx.HTTPError, OSError):
+        return False
+
+
 async def dependency_readiness() -> dict[str, Any]:
     result: dict[str, Any] = {
         "database": False,
@@ -2250,15 +2271,7 @@ async def dependency_readiness() -> dict[str, Any]:
     except Exception:
         result["redis"] = False
 
-    if os.getenv(
-        "DDF_OPENFGA_URL"
-    ):
-        try:
-            result["openfga"] = (
-                await OpenFGAAdminClient().ready()
-            )
-        except Exception:
-            result["openfga"] = False
+    result["openfga"] = await _probe_openfga_readiness()
 
     return result
 

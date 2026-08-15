@@ -3,6 +3,11 @@ kind: Deployment
 metadata:
   name: ddf
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   replicas: 3
   selector:
     matchLabels:
@@ -12,6 +17,8 @@ spec:
       labels:
         app: ddf
     spec:
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -19,6 +26,13 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ddf
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - "sh"
+                  - "-c"
+                  - "sleep 8"
           image: ghcr.io/arkstride/ddf:VERSION
           ports:
             - containerPort: 8000
