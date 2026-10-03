@@ -1,0 +1,1 @@
+Source-assisted security assessment conducted via Claude, commit c96b5bf5d1a30604ab9c2e24775477113fae5354 through fc0f58438e547d311feb0f11cec4349048c364d9. Ten findings remediated and adversarially retested; remainder open and tracked in 05-findings-register.md. Not a substitute for the external independent_pentest gate in release-gates.json.
