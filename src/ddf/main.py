@@ -20,6 +20,9 @@ from ddf.api.routes.provenance_endpoints import (
 from ddf.api.routes.revocation_endpoints import (
     router as revocation_router,
 )
+from ddf.api.routes.universal_capabilities import (
+    router as universal_capabilities_router,
+)
 from ddf.commercial.api import install_commercial
 from ddf.commercial.production_readiness import install_production_readiness
 from ddf.settings import get_settings
@@ -77,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(authorization_router)
     app.include_router(revocation_router)
     app.include_router(provenance_router)
+    app.include_router(universal_capabilities_router)
 
     install_commercial(app)
 

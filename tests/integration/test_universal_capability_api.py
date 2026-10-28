@@ -265,6 +265,7 @@ async def test_v1_authorization_is_gone_without_compatibility_opt_in(
 
     monkeypatch.delenv("DDF_V01_COMPATIBILITY_ENABLED", raising=False)
     app = create_app()
+    assert "/v2/authorize" in app.openapi()["paths"]
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://ddf.test",
