@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from ddf.api.errors import AttenuationViolationError
 from ddf.authority.models import AuthorityConstraints
+from ddf.crypto.signing import Ed25519Key
 from ddf.delegation.service import DelegationService, GrantService
 from ddf.settings import get_settings
 
@@ -51,6 +52,7 @@ class TestGrantService:
             purposes=["procurement"],
             expires_in_hours=24,
             reason="Initial procurement authority",
+            signing_key=Ed25519Key.generate(),
         )
 
         assert authority.sponsor == sponsor
@@ -79,6 +81,7 @@ class TestGrantService:
             purposes=["procurement"],
             constraints=constraints,
             expires_in_hours=24,
+            signing_key=Ed25519Key.generate(),
         )
 
         assert authority.constraints.max_amount == 50000
@@ -104,6 +107,7 @@ class TestDelegationService:
             resources=["vendor/dell/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            signing_key=Ed25519Key.generate(),
         )
 
         # Now delegate from the buyer to another agent
@@ -116,6 +120,7 @@ class TestDelegationService:
             actions=["purchase"],  # More restrictive
             resources=["vendor/dell/order/*"],  # More restrictive
             purposes=["procurement"],
+            signing_key=Ed25519Key.generate(),
         )
 
         assert child_authority.actor == delegated_to
@@ -138,6 +143,7 @@ class TestDelegationService:
             resources=["vendor/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            signing_key=Ed25519Key.generate(),
         )
 
         delegated_to = f"agent:delegate-{uuid.uuid4().hex[:4]}"
@@ -147,6 +153,7 @@ class TestDelegationService:
             session=test_db,
             parent_authority_id=parent_authority.authority_id,
             delegated_to=delegated_to,
+            signing_key=Ed25519Key.generate(),
         )
 
         # Should inherit from parent
@@ -169,6 +176,7 @@ class TestDelegationService:
             purposes=["procurement"],
             constraints=AuthorityConstraints(max_amount=10000),
             expires_in_hours=24,
+            signing_key=Ed25519Key.generate(),
         )
 
         delegated_to = f"agent:delegate-{uuid.uuid4().hex[:4]}"
@@ -180,6 +188,7 @@ class TestDelegationService:
                 parent_authority_id=parent_authority.authority_id,
                 delegated_to=delegated_to,
                 actions=["purchase", "delete"],  # Expansion!
+                signing_key=Ed25519Key.generate(),
             )
 
     @pytest.mark.asyncio
@@ -199,6 +208,7 @@ class TestDelegationService:
             resources=["vendor/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            signing_key=Ed25519Key.generate(),
         )
 
         # First delegation
@@ -206,6 +216,7 @@ class TestDelegationService:
             session=test_db,
             parent_authority_id=root_auth.authority_id,
             delegated_to=delegate1,
+            signing_key=Ed25519Key.generate(),
         )
 
         assert child1.authority_path == [sponsor, buyer, delegate1]
@@ -215,6 +226,7 @@ class TestDelegationService:
             session=test_db,
             parent_authority_id=child1.authority_id,
             delegated_to=delegate2,
+            signing_key=Ed25519Key.generate(),
         )
 
         assert child2.authority_path == [sponsor, buyer, delegate1, delegate2]

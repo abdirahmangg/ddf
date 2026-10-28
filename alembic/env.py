@@ -1,5 +1,4 @@
 import asyncio
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -50,7 +49,7 @@ def run_migrations_offline() -> None:
     # Get database URL from settings
     settings = get_settings()
     url = settings.database_url
-    
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -77,7 +76,7 @@ async def run_async_migrations() -> None:
     # Get database URL from settings and convert to asyncpg URL
     settings = get_settings()
     database_url = settings.database_url
-    
+
     # Convert postgresql:// to postgresql+asyncpg://
     if database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)

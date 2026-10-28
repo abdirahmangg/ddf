@@ -68,6 +68,21 @@ class TestCanonicalSerialization:
         assert b"sig123" not in canonical
         assert b"proof" not in canonical
 
+    def test_empty_new_predicates_preserve_legacy_authority_signing_bytes(self):
+        authority_payload = {
+            "authority_id": "ddf:authority:test",
+            "constraints": {"max_amount": 10, "predicates": None},
+        }
+
+        assert CanonicalSerializer.serialize_authority_for_signing(
+            authority_payload
+        ) == CanonicalSerializer.serialize_authority_for_signing(
+            {
+                "authority_id": "ddf:authority:test",
+                "constraints": {"max_amount": 10},
+            }
+        )
+
     def test_request_proof_serialization(self):
         """Test request proof serialization."""
         canonical = CanonicalSerializer.serialize_request_proof(

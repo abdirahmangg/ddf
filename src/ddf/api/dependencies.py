@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from ddf.db.models import Base
 from ddf.settings import Settings, get_settings
 
 
@@ -36,6 +37,9 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     )
 
     try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
         async with session_factory() as session:
             yield session
     finally:

@@ -8,6 +8,7 @@ A child authority cannot expand constraints beyond its parent.
 from datetime import UTC, datetime
 
 from ddf.authority.models import AuthorityConstraints
+from ddf.authority.predicates import PredicateEngine, PredicateError
 
 
 class ConstraintValidator:
@@ -36,6 +37,12 @@ class ConstraintValidator:
             - child.expires_at > parent.expires_at
         """
         violations: list[str] = []
+
+        try:
+            if not PredicateEngine.is_attenuated(child.predicates, parent.predicates):
+                violations.append("AUTHORITY_PREDICATE_EXPANSION")
+        except PredicateError as exc:
+            violations.append(f"INVALID_AUTHORITY_PREDICATE: {exc}")
 
         # Check max_amount
         if (
@@ -171,6 +178,7 @@ class ConstraintValidator:
             Effective constraints
         """
         effective = AuthorityConstraints()
+        effective.predicates = PredicateEngine.combine(parent.predicates, child.predicates)
 
         # For max_amount, take minimum
         if parent.max_amount is not None and child.max_amount is not None:

@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from ddf.db.models import (
+    Base,
     Authority,
     AuthorityDelegation,
     AuthorizationLog,
@@ -30,10 +31,8 @@ async def test_db():
 
     engine = create_async_engine(db_url, echo=False)
 
-    # Create tables
-    async with engine.begin():
-        # Note: In a real test, you'd use a test-specific database
-        pass
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
     session_maker = async_sessionmaker(
         engine,

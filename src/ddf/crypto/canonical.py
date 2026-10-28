@@ -53,6 +53,11 @@ class CanonicalSerializer:
         # Create a copy and remove proof if present
         signing_data = dict(authority_dict)
         signing_data.pop("proof", None)
+        constraints = signing_data.get("constraints")
+        if isinstance(constraints, dict) and constraints.get("predicates") is None:
+            constraints = dict(constraints)
+            constraints.pop("predicates", None)
+            signing_data["constraints"] = constraints
 
         return CanonicalSerializer.serialize(signing_data)
 

@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from ddf.api.errors import InvalidAuthorityPathError
 from ddf.authority.effective import load_authority_chain
+from ddf.crypto.signing import Ed25519Key
 from ddf.db.models import Authority as AuthorityDB
 from ddf.delegation.service import (
     DelegationService,
@@ -27,18 +28,21 @@ async def test_fabricated_direct_path_is_denied(
         actions=["purchase"],
         resources=["vendor/*"],
         purposes=["procurement"],
+        signing_key=Ed25519Key.generate(),
     )
 
     procurement, _ = await DelegationService.create_delegation(
         session=test_db,
         parent_authority_id=root.authority_id,
         delegated_to=(f"agent:procurement-{suffix}"),
+        signing_key=Ed25519Key.generate(),
     )
 
     buyer, _ = await DelegationService.create_delegation(
         session=test_db,
         parent_authority_id=(procurement.authority_id),
         delegated_to=f"agent:buyer-{suffix}",
+        signing_key=Ed25519Key.generate(),
     )
 
     result = await test_db.execute(

@@ -15,6 +15,11 @@ from ddf.api.errors import (
     ProofOfPossessionError,
     SignatureVerificationError,
 )
+from ddf.authority.capabilities import (
+    CapabilityAccessRequest,
+    CapabilityEvaluationResult,
+    CapabilityEvaluator,
+)
 from ddf.authority.effective import (
     EffectiveAuthority,
     calculate_effective_authority,
@@ -24,7 +29,10 @@ from ddf.authority.models import (
     Authority,
     AuthorizationDecision,
     AuthorizationRequest,
+    UniversalDDFCapabilityAssertion,
 )
+from ddf.authority.predicates import PredicateEngine
+from ddf.authority.runtime_posture import EATVerifier
 from ddf.crypto.canonical import CanonicalSerializer
 from ddf.db.models import AuthorizationLog
 from ddf.policy.openfga import OpenFGAPolicy
@@ -34,6 +42,28 @@ from ddf.revocation.service import RevocationService
 
 class AuthorizationService:
     """Evaluate DDF authority across the full delegation chain."""
+
+    @staticmethod
+    def authorize_capability(
+        assertion: UniversalDDFCapabilityAssertion,
+        request: CapabilityAccessRequest,
+        *,
+        runtime_verifier: EATVerifier | None = None,
+    ) -> CapabilityEvaluationResult:
+        """Evaluate a v0.2 assertion with runtime posture bound to its request."""
+        return CapabilityEvaluator.authorize(
+            assertion,
+            request,
+            runtime_verifier=runtime_verifier,
+        )
+
+    @staticmethod
+    def is_capability_attenuated(
+        parent: UniversalDDFCapabilityAssertion,
+        child: UniversalDDFCapabilityAssertion,
+    ) -> CapabilityEvaluationResult:
+        """Check that a universal child assertion narrows its parent."""
+        return CapabilityEvaluator.is_attenuated(parent, child)
 
     @staticmethod
     async def authorize(
@@ -49,7 +79,12 @@ class AuthorizationService:
         )
 
         for authority in chain:
-            if authority.expires_at < now:
+            expires_at = authority.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            else:
+                expires_at = expires_at.astimezone(UTC)
+            if expires_at < now:
                 decision = AuthorizationService._decision(
                     request=request,
                     authority=authority,
@@ -57,7 +92,7 @@ class AuthorizationService:
                     reasons=["authority_expired"],
                     details={
                         "authority_id": authority.authority_id,
-                        "expires_at": (authority.expires_at.isoformat()),
+                        "expires_at": (expires_at.isoformat()),
                     },
                 )
 
@@ -141,6 +176,13 @@ class AuthorizationService:
             details["authority_purposes"] = effective.purposes
             details["request_purpose"] = request.purpose
 
+        AuthorizationService._evaluate_predicates(
+            request=request,
+            effective=effective,
+            reasons=reasons,
+            details=details,
+        )
+
         AuthorizationService._evaluate_constraints(
             request=request,
             effective=effective,
@@ -153,7 +195,7 @@ class AuthorizationService:
         if openfga.enabled:
             relation = request.context.get(
                 "openfga_relation",
-                "operator",
+                "subject",
             )
             object_id = request.context.get(
                 "openfga_object",
@@ -161,7 +203,7 @@ class AuthorizationService:
             )
             user = request.context.get(
                 "openfga_user",
-                request.actor,
+                f"principal:{request.actor}",
             )
 
             relationship_allowed = await openfga.check(
@@ -267,6 +309,7 @@ class AuthorizationService:
             "action": request.action,
             "resource": request.resource,
             "purpose": request.purpose,
+            "target_namespace": request.target_namespace,
             "authority_id": request.authority_id,
             "context": context,
         }
@@ -376,6 +419,31 @@ class AuthorizationService:
             reasons.append("audience_not_permitted")
             details["authority_audiences"] = audiences
             details["request_audience"] = audience
+
+    @staticmethod
+    def _evaluate_predicates(
+        *,
+        request: AuthorizationRequest,
+        effective: EffectiveAuthority,
+        reasons: list[str],
+        details: dict[str, Any],
+    ) -> None:
+        predicates = effective.constraints.predicates
+        if predicates is None:
+            return
+
+        environment = {
+            "actor": request.actor,
+            "action": request.action,
+            "operation": request.action,
+            "resource": request.resource,
+            "target_namespace": request.target_namespace,
+            "purpose": request.purpose,
+            "context": request.context,
+        }
+        if not PredicateEngine.evaluate(predicates, environment):
+            reasons.append("capability_predicate_not_satisfied")
+            details["predicate"] = predicates
 
     @staticmethod
     def _decision(

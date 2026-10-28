@@ -5,9 +5,11 @@ from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
 )
@@ -170,6 +172,56 @@ class AuthorityDelegation(Base):
         Index("idx_delegation_actor", "actor"),
         Index("idx_delegation_delegated_to", "delegated_to"),
         Index("idx_delegation_created_at", "created_at"),
+    )
+
+
+class UniversalAssertionRecord(Base):
+    """Persisted v0.2 assertion and detached issuer proof."""
+
+    __tablename__ = "ddf_universal_assertions"
+
+    grant_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    assertion_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    proof_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    parent_grant_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("ddf_universal_assertions.grant_id"),
+        nullable=True,
+    )
+    source_authority_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class CapabilityRevocation(Base):
+    """Persisted revocation status for a universal capability assertion."""
+
+    __tablename__ = "ddf_capability_revocations"
+
+    grant_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("ddf_universal_assertions.grant_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    actor: Mapped[str] = mapped_column(String(512), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProvenanceChainHead(Base):
+    """Transactional lock and tip hash for the globally ordered provenance chain."""
+
+    __tablename__ = "ddf_provenance_chain_head"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    latest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_ddf_provenance_chain_head_singleton"),
     )
 
 

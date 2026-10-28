@@ -2,9 +2,18 @@
 
 **Open-source authorization infrastructure for delegated AI-agent authority.**
 
+The sector-neutral assertion format, predicate semantics, and namespace
+integration cases are documented in [Universal capabilities](docs/UNIVERSAL_CAPABILITIES.md).
+The implementation mapping for NIST lifecycle and ACS Guardian hooks is in
+[COMPLIANCE_NIST_ACS.md](COMPLIANCE_NIST_ACS.md).
+The strict `/v2` API uses universal capability assertions. Legacy `/v1`
+authority and authorization endpoints are disabled by default; set
+`DDF_V01_COMPATIBILITY_ENABLED=true` only during an explicitly managed
+migration window.
+
 DDF answers the fundamental authorization question:
 
-> **Which actor can perform which action, on which resource, through which authority path, for what purpose, under whose sponsorship—and until when?**
+> **Which principal can perform which operation on which resource, under what constraints, and through which delegation path?**
 
 ## The Problem
 
@@ -19,49 +28,32 @@ DDF solves this through a **cryptographically-verified, auditable delegation mod
 
 ## How It Works
 
-Imagine Alice delegates purchase authority:
+Imagine a principal delegates resource access:
 
 ```
 Alice
-  │ "purchase anything from vendors"
-  │ "up to £10,000"
-  │ "delegation depth = 3"
+  │ execute on urn:mcp:tools/*
   │
   ▼
 Planner Agent
-  │ "purchase from Dell only"
-  │ "up to £5,000"
-  │ "delegation depth = 2"
+  │ execute on urn:mcp:tools/database_query
   │
   ▼
-Procurement Agent
-  │ "purchase from Dell"
-  │ "up to £2,000"
-  │ "delegation depth = 1"
+Worker Agent
   │
   ▼
-Buyer Agent
-  │
-  ▼
-Vendor API ← "Can I purchase? YES"
+MCP Tool ← "Can I execute? YES"
 ```
 
 Each step is:
 1. **Cryptographically signed** (Ed25519)
 2. **Bound to the recipient** (proof of possession)
 3. **Attenuated** (child cannot increase parent's permissions)
-4. **Time-limited** (explicit expiration)
-5. **Purpose-bound** (only for "procurement", not marketing)
-6. **Auditable** (every decision is logged)
+4. **Runtime-bound** (fresh, signed EAT posture evidence)
+5. **Auditable** (every decision is logged)
 
-If Buyer Agent tries to purchase **£20,000**, DDF returns:
-
-```
-✗ DENY
-reason: AUTHORITY_AMOUNT_EXPANSION
-parent_maximum: £2,000
-requested: £20,000
-```
+Legacy purpose and monetary limits are retained only as generic predicates
+during migration; they are not v0.2 assertion fields.
 
 ## Core Invariant
 
@@ -73,10 +65,9 @@ Authority(child) ⊆ Authority(parent)
 
 A delegated authority can only **narrow**, never **expand**.
 
-- Child max_amount ≤ Parent max_amount ✓
+- Child constraints ⊆ Parent constraints ✓
 - Child resources ⊆ Parent resources ✓
-- Child purposes ⊆ Parent purposes ✓
-- Child expiration ≤ Parent expiration ✓
+- Child operations ⊆ Parent operations ✓
 
 This invariant is **enforced by code** on every delegation.
 
@@ -84,14 +75,12 @@ This invariant is **enforced by code** on every delegation.
 
 Every DDF authority tracks:
 
-1. **Actor** — who is authorized (`agent:buyer`)
-2. **Action** — what they can do (`purchase`, `quote`, `review`)
-3. **Resource** — what they can access (`vendor/dell/order/*`)
-4. **Authority Path** — full delegation chain (`[Alice, Planner, Procurement, Buyer]`)
-5. **Purpose** — why they can do it (`procurement`)
-6. **Sponsor** — who ultimately authorized them (`user:alice@example.com`)
-7. **Constraints** — boundaries (max amount, geography, audience, expiration)
-8. **Proof** — cryptographic signature
+1. **Issuer and subject** — the delegating and delegated principal URIs
+2. **Namespace and resource** — the universal resource scope
+3. **Operations** — canonical operations such as `read`, `write`, and `execute`
+4. **Constraints** — generic, declarative predicates
+5. **Proof** — detached Ed25519 signature
+6. **Runtime posture** — fresh EAT signed by a trusted attestation issuer
 
 ## Why DDF?
 
@@ -128,55 +117,29 @@ make up
 ddf identity create buyer-agent
 ```
 
-### 3. Grant Authority
+### 3. Create a Grant
 
 ```bash
-ddf grant \
-  --sponsor "user:alice@example.com" \
-  --actor "agent:buyer-agent" \
-  --action "purchase" \
-  --resource "vendor/*" \
-  --purpose "procurement" \
-  --max-amount 10000 \
-  --currency GBP
+ddf grant --assertion-json '<signed universal assertion JSON>'
 ```
 
 ### 4. Delegate
 
 ```bash
-ddf delegate \
-  --parent-authority-id ddf:authority:... \
-  --actor "agent:procurement-agent" \
-  --max-amount 5000
+ddf delegate --parent <grant-uuid> --assertion-json '<signed child assertion JSON>'
 ```
 
 ### 5. Authorize
 
 ```bash
 ddf authorize \
-  --actor "agent:procurement-agent" \
-  --action "purchase" \
-  --resource "vendor/dell/order/9281" \
-  --purpose "procurement" \
-  --authority-id ddf:authority:... \
-  --context '{"amount": 4200, "currency": "GBP", "geography": "GB"}'
+  --grant <grant-uuid> \
+  --request-json '<strict access request with EAT token and runtime_context>'
 ```
 
-Response:
-
-```
-✓ ALLOW
-
-Actor       agent:procurement-agent
-Action      purchase
-Resource    vendor/dell/order/9281
-Purpose     procurement
-Sponsor     user:alice@example.com
-Path        Alice → Planner → Procurement → Buyer
-Maximum     GBP 5,000
-Requested   GBP 4,200
-Expires     2026-08-13 15:00 UTC
-```
+Configure `DDF_API_URL`, `DDF_CAPABILITY_TRUSTED_KEYS`, and
+`DDF_EAT_TRUSTED_KEYS` before using v0.2 commands. Request fields and required
+trust configuration are described in [Universal capabilities](docs/UNIVERSAL_CAPABILITIES.md).
 
 ## Technology Stack
 
@@ -205,9 +168,9 @@ DDF Core
 ↓
 
 FastAPI Routes
-├── POST /v1/grants         (create root authority)
-├── POST /v1/delegations    (delegate authority)
-├── POST /v1/authorize      (check authorization)
+├── POST /v2/grants         (create root assertion)
+├── POST /v2/delegations    (delegate assertion)
+├── POST /v2/authorize      (check capability and runtime posture)
 ├── GET  /v1/decisions/{id} (explain decision)
 └── POST /v1/revocations    (revoke authority)
 

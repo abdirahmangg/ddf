@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
 
 from ddf.authority.models import AuthorityConstraints, AuthorizationRequest
 from ddf.authorization.service import AuthorizationService
+from ddf.db.models import Base
 from ddf.delegation.service import GrantService
 from ddf.settings import get_settings
 
@@ -42,6 +43,9 @@ async def test_db():
         future=True,
     )
 
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     async with session_maker() as session:
         yield session
 
@@ -65,6 +69,7 @@ class TestAuthorizationService:
             resources=["vendor/dell/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            unsigned=True,
         )
 
         request = AuthorizationRequest(
@@ -98,6 +103,7 @@ class TestAuthorizationService:
             resources=["vendor/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            unsigned=True,
         )
 
         wrong_actor = f"agent:other-{uuid.uuid4().hex[:4]}"
@@ -132,6 +138,7 @@ class TestAuthorizationService:
             resources=["vendor/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            unsigned=True,
         )
 
         request = AuthorizationRequest(
@@ -164,6 +171,7 @@ class TestAuthorizationService:
             resources=["vendor/dell/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            unsigned=True,
         )
 
         request = AuthorizationRequest(
@@ -210,6 +218,7 @@ class TestAuthorizationService:
             resources=["vendor/*"],
             purposes=["procurement"],
             expires_in_hours=24,
+            unsigned=True,
         )
 
         result = await test_db.execute(
@@ -256,6 +265,7 @@ class TestAuthorizationService:
                 currency="USD",
             ),
             expires_in_hours=24,
+            unsigned=True,
         )
 
         request = AuthorizationRequest(

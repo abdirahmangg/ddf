@@ -9,10 +9,12 @@ from nacl.encoding import Base64Encoder
 from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ddf.crypto.signing import Ed25519Key
-from ddf.db.models import ProvenanceEvent
+from ddf.db.models import ProvenanceChainHead, ProvenanceEvent
 
 CHAIN_FORMAT = "ddf-provenance/1"
 
@@ -71,15 +73,11 @@ class ProvenanceService:
         signing_key: Ed25519Key | None = None,
     ) -> ProvenanceEvent:
         """Append a tamper-evident provenance event."""
-        previous = await ProvenanceService._latest_chained_event(session)
-
-        previous_hash = (
-            previous.content_hash
-            if previous is not None and previous.content_hash is not None
-            else ""
-        )
+        head = await ProvenanceService._lock_chain_head(session)
+        previous_hash = head.latest_hash
 
         created_at = datetime.now(UTC)
+        normalized_created_at = created_at.astimezone(UTC).replace(tzinfo=None)
         business_details = dict(details or {})
 
         payload = {
@@ -91,7 +89,7 @@ class ProvenanceService:
             "resource": resource,
             "details": business_details,
             "previous_hash": previous_hash,
-            "created_at": created_at.isoformat(),
+            "created_at": normalized_created_at.isoformat(),
         }
 
         content_hash = hashlib.sha256(_canonical_json(payload)).hexdigest()
@@ -120,8 +118,46 @@ class ProvenanceService:
         )
 
         session.add(event)
+        await session.flush()
+        head.latest_hash = content_hash
+        head.updated_at = created_at
 
         return event
+
+    @staticmethod
+    async def _lock_chain_head(session: AsyncSession) -> ProvenanceChainHead:
+        """Acquire a transaction-scoped lock shared by SQLite and PostgreSQL writers."""
+        bind = session.get_bind()
+        now = datetime.now(UTC)
+        values = {"id": 1, "latest_hash": "", "updated_at": now}
+        if bind.dialect.name == "sqlite":
+            await session.execute(
+                sqlite_insert(ProvenanceChainHead)
+                .values(**values)
+                .on_conflict_do_nothing(index_elements=[ProvenanceChainHead.id])
+            )
+        elif bind.dialect.name == "postgresql":
+            await session.execute(
+                postgresql_insert(ProvenanceChainHead)
+                .values(**values)
+                .on_conflict_do_nothing(index_elements=[ProvenanceChainHead.id])
+            )
+        else:
+            raise RuntimeError(
+                f"provenance chain locking is unsupported for dialect {bind.dialect.name}"
+            )
+        head = await session.scalar(
+            select(ProvenanceChainHead)
+            .where(ProvenanceChainHead.id == 1)
+            .with_for_update()
+        )
+        if head is None:
+            raise RuntimeError("provenance chain head could not be initialized")
+        if not head.latest_hash:
+            latest = await ProvenanceService._latest_chained_event(session)
+            if latest is not None and latest.content_hash is not None:
+                head.latest_hash = latest.content_hash
+        return head
 
     @staticmethod
     def _payload_for_event(
@@ -133,6 +169,12 @@ class ProvenanceService:
         business_details = {
             key: value for key, value in details.items() if not key.startswith("_ddf_")
         }
+
+        created_at = event.created_at
+        if created_at.tzinfo is not None:
+            created_at = created_at.astimezone(UTC).replace(tzinfo=None)
+        else:
+            created_at = created_at.replace(tzinfo=None)
 
         return {
             "event_type": event.event_type,
@@ -146,7 +188,7 @@ class ProvenanceService:
                 "_ddf_previous_hash",
                 "",
             ),
-            "created_at": event.created_at.isoformat(),
+            "created_at": created_at.isoformat(),
         }
 
     @staticmethod
@@ -154,28 +196,59 @@ class ProvenanceService:
         session: AsyncSession,
     ) -> tuple[bool, list[str]]:
         """
-        Verify the complete current-format provenance chain.
+        Verify the active current-format provenance chain from the latest event
+        backward along the embedded previous-hash pointers.
 
         Legacy provenance rows are retained but are not silently interpreted
         as members of a chain format they were never written with.
         """
         stmt = select(ProvenanceEvent).order_by(
-            ProvenanceEvent.created_at.asc(),
-            ProvenanceEvent.event_id.asc(),
+            ProvenanceEvent.created_at.desc(),
+            ProvenanceEvent.event_id.desc(),
         )
 
         result = await session.execute(stmt)
-
         chained_events = [
             event
             for event in result.scalars().all()
             if ProvenanceService._participates_in_current_chain(event)
         ]
 
+        if not chained_events:
+            return True, []
+
+        by_hash = {
+            event.content_hash: event
+            for event in chained_events
+            if event.content_hash is not None
+        }
+        head = await session.get(ProvenanceChainHead, 1)
+        latest_event = (
+            by_hash.get(head.latest_hash)
+            if head is not None
+            else chained_events[0]
+        )
+        if latest_event is None:
+            return False, ["PROVENANCE_CHAIN_HEAD_MISMATCH"]
+
+        seen: set[str] = set()
+        chain_events: list[ProvenanceEvent] = []
+        current: ProvenanceEvent | None = latest_event
+
+        while current is not None and current.content_hash not in seen:
+            chain_events.append(current)
+            seen.add(current.content_hash or "")
+
+            previous_hash = (current.details_json or {}).get("_ddf_previous_hash", "")
+            if not previous_hash:
+                break
+
+            current = by_hash.get(previous_hash)
+
         violations: list[str] = []
         previous_hash = ""
 
-        for event in chained_events:
+        for event in reversed(chain_events):
             details = event.details_json or {}
 
             stored_previous_hash = details.get(

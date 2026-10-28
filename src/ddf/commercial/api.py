@@ -19,7 +19,7 @@ from fastapi import (
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from ddf.api.dependencies import get_db_session
 from ddf.authority.models import AuthorizationRequest
@@ -87,12 +87,14 @@ PrincipalDep = Annotated[
 
 
 class LegacyMutationGuard(BaseHTTPMiddleware):
-    """Disable insecure v0.1 mutation endpoints in enforced deployments."""
+    """Unconditionally disable unauthenticated legacy authority endpoints."""
 
     protected = (
         "/v1/grants",
         "/v1/delegations/",
         "/v1/revocations",
+        "/v1/authorize",
+        "/v1/audit",
     )
 
     async def dispatch(
@@ -100,19 +102,30 @@ class LegacyMutationGuard(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        enforce = os.getenv("DDF_COMMERCIAL_ENFORCE", "false").lower() in {"1", "true", "yes", "on"}
+        if os.getenv("DDF_V01_COMPATIBILITY_ENABLED", "").lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }:
+            return await call_next(request)
+
+        method = request.method.upper()
+        is_audit_read = request.url.path.startswith("/v1/audit")
+        is_legacy_mutation = method in {"POST", "PUT", "PATCH", "DELETE"}
 
         if (
-            enforce
-            and request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+            (is_audit_read or is_legacy_mutation)
             and any(
                 request.url.path == path or request.url.path.startswith(path)
                 for path in self.protected
             )
         ):
-            raise HTTPException(
+            return JSONResponse(
                 status_code=410,
-                detail=("legacy unauthenticated mutation endpoint disabled; use /v1/commercial/*"),
+                content={
+                    "detail": "legacy unauthenticated endpoint disabled; use /v1/commercial/*"
+                },
             )
 
         return await call_next(request)

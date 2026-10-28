@@ -37,8 +37,12 @@ class GrantService:
         expires_in_hours: int = 24,
         reason: str | None = None,
         signing_key: Ed25519Key | None = None,
+        unsigned: bool = False,
     ) -> Authority:
         """Create a root authority grant."""
+        if signing_key is None and not unsigned:
+            raise ValueError("signing_key is required unless unsigned=True")
+
         now = datetime.now(UTC)
         expires_at = now + timedelta(hours=expires_in_hours)
 
@@ -57,7 +61,7 @@ class GrantService:
 
         if signing_key is not None:
             canonical_bytes = CanonicalSerializer.serialize_authority_for_signing(
-                authority.model_dump()
+                authority.model_dump(mode="json")
             )
 
             authority.proof = AuthorityProof(
@@ -119,8 +123,12 @@ class DelegationService:
         constraints: AuthorityConstraints | None = None,
         reason: str | None = None,
         signing_key: Ed25519Key | None = None,
+        unsigned: bool = False,
     ) -> tuple[Authority, str]:
         """Create an attenuated child authority."""
+        if signing_key is None and not unsigned:
+            raise ValueError("signing_key is required unless unsigned=True")
+
         parent_db = await session.get(
             AuthorityDB,
             parent_authority_id,
@@ -186,7 +194,7 @@ class DelegationService:
 
         if signing_key is not None:
             canonical_bytes = CanonicalSerializer.serialize_authority_for_signing(
-                child_authority.model_dump()
+                child_authority.model_dump(mode="json")
             )
 
             child_authority.proof = AuthorityProof(

@@ -7,12 +7,16 @@ Do not implement custom cryptography.
 """
 
 import base64
+from collections.abc import Mapping
+from typing import Any
 
 import nacl.exceptions
 import nacl.signing
 import nacl.utils
 
 from ddf.api.errors import SignatureVerificationError
+from ddf.authority.models import CapabilityAssertionProof, UniversalDDFCapabilityAssertion
+from ddf.crypto.canonical import CanonicalSerializer
 
 
 class Ed25519Key:
@@ -63,6 +67,21 @@ class Ed25519Key:
         """
         signature = self._signing_key.sign(message).signature
         return base64.b64encode(signature).decode("utf-8")
+
+    def sign_payload(self, payload: Mapping[str, Any]) -> str:
+        """Sign a JSON payload using DDF's deterministic canonical encoding."""
+        return self.sign(CanonicalSerializer.serialize(dict(payload)))
+
+    def sign_assertion(
+        self,
+        assertion: UniversalDDFCapabilityAssertion,
+    ) -> CapabilityAssertionProof:
+        """Create a detached Ed25519 proof for a universal capability assertion."""
+        return CapabilityAssertionProof(
+            key_id=self.key_id,
+            signature=self.sign_payload(assertion.model_dump(mode="json")),
+            public_key=self.verify_key_b64,
+        )
 
     @staticmethod
     def generate(key_id: str | None = None) -> "Ed25519Key":
@@ -138,3 +157,28 @@ class Verifier:
             raise SignatureVerificationError(f"Signature verification failed: {e}") from e
         except nacl.exceptions.ValueError as e:
             raise SignatureVerificationError(f"Invalid key format: {e}") from e
+
+    @staticmethod
+    def verify_payload(
+        public_key_b64: str,
+        payload: Mapping[str, Any],
+        signature_b64: str,
+    ) -> bool:
+        """Verify a signature over a canonical JSON payload."""
+        return Verifier.verify_signature(
+            public_key_b64,
+            CanonicalSerializer.serialize(dict(payload)),
+            signature_b64,
+        )
+
+    @staticmethod
+    def verify_assertion(
+        assertion: UniversalDDFCapabilityAssertion,
+        proof: CapabilityAssertionProof,
+    ) -> bool:
+        """Verify the detached Ed25519 proof for a universal assertion."""
+        return Verifier.verify_payload(
+            proof.public_key,
+            assertion.model_dump(mode="json"),
+            proof.signature,
+        )

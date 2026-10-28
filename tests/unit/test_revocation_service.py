@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from ddf.crypto.signing import Ed25519Key
 from ddf.delegation.service import (
     DelegationService,
     GrantService,
@@ -24,12 +25,14 @@ async def test_ancestor_revocation_invalidates_descendant(
         actions=["purchase"],
         resources=["vendor/*"],
         purposes=["procurement"],
+        signing_key=Ed25519Key.generate(),
     )
 
     child, _ = await DelegationService.create_delegation(
         session=test_db,
         parent_authority_id=root.authority_id,
         delegated_to=f"agent:buyer-{suffix}",
+        signing_key=Ed25519Key.generate(),
     )
 
     assert not await RevocationService.is_effectively_revoked(

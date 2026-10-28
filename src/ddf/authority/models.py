@@ -1,10 +1,117 @@
 """Core authority domain models for DDF."""
 
 from datetime import UTC, datetime
-from typing import Any
-from uuid import uuid4
+from typing import Any, Literal
+from urllib.parse import urlsplit
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ddf.authority.predicates import PredicateEngine
+
+CANONICAL_OPERATIONS = frozenset({"read", "write", "execute", "invoke", "delegate", "admin"})
+
+
+class Capability(BaseModel):
+    """Sector-neutral resource scope and constraints carried by a capability."""
+
+    target_namespace: str = Field(min_length=1)
+    target_resource: str
+    operations: list[str] = Field(min_length=1)
+    constraints: dict[str, Any]
+
+    @field_validator("target_namespace")
+    @classmethod
+    def validate_namespace(cls, value: str) -> str:
+        if not value:
+            raise ValueError("target_namespace cannot be empty")
+        return value
+
+    @field_validator("operations")
+    @classmethod
+    def validate_operations(cls, value: list[str]) -> list[str]:
+        if (
+            not value
+            or len(value) != len(set(value))
+            or not set(value).issubset(CANONICAL_OPERATIONS)
+        ):
+            raise ValueError(
+                "operations must be a non-empty, unique subset of canonical operations "
+                f"{sorted(CANONICAL_OPERATIONS)}"
+            )
+        return value
+
+    @field_validator("target_resource")
+    @classmethod
+    def validate_resource_uri(cls, value: str) -> str:
+        if not urlsplit(value).scheme or any(character.isspace() for character in value):
+            raise ValueError("target_resource must be a valid URI")
+        return value
+
+    @field_validator("constraints")
+    @classmethod
+    def validate_constraint_predicates(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if value:
+            PredicateEngine.validate(value)
+        return value
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UniversalDDFCapabilityAssertion(BaseModel):
+    """Canonical, sector-neutral DDF capability assertion."""
+
+    grant_id: str = Field(
+        description="UUID of this grant",
+        json_schema_extra={"format": "uuid"},
+    )
+    issuer: str = Field(
+        description="URI of delegating entity",
+        json_schema_extra={"format": "uri"},
+    )
+    subject: str = Field(
+        description="URI of delegated actor",
+        json_schema_extra={"format": "uri"},
+    )
+    capability: Capability
+
+    @field_validator("grant_id")
+    @classmethod
+    def validate_grant_id(cls, value: str) -> str:
+        return str(UUID(value))
+
+    @field_validator("issuer", "subject")
+    @classmethod
+    def validate_principal_uri(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if not parsed.scheme or any(character.isspace() for character in value):
+            raise ValueError("principal identifiers must be valid URIs")
+        return value
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"title": "UniversalDDFCapabilityAssertion"},
+    )
+
+
+class CapabilityAssertionProof(BaseModel):
+    """Detached Ed25519 proof for a universal capability assertion."""
+
+    algorithm: Literal["Ed25519"] = "Ed25519"
+    key_id: str
+    signature: str
+    public_key: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SignedCapabilityAssertion(BaseModel):
+    """Universal assertion and detached issuer proof used by v0.2 APIs."""
+
+    assertion: UniversalDDFCapabilityAssertion
+    proof: CapabilityAssertionProof
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class AuthorityConstraints(BaseModel):
@@ -39,16 +146,30 @@ class AuthorityConstraints(BaseModel):
         default=None,
         description="Maximum number of further delegations permitted (0 = terminal)",
     )
+    predicates: dict[str, Any] | None = Field(
+        default=None,
+        description="Declarative request-context predicates evaluated by the predicate engine",
+    )
+
+    @field_validator("predicates")
+    @classmethod
+    def validate_predicates(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
+        if value is not None:
+            PredicateEngine.validate(value)
+        return value
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "max_amount": 5000.0,
-                "currency": "GBP",
-                "geographies": ["GB"],
-                "audiences": ["vendor-api"],
-                "expires_at": "2026-08-13T17:00:00Z",
-                "delegation_depth_remaining": 2,
+                "predicates": {
+                    "all": [
+                        {
+                            "path": "context.classification",
+                            "op": "in",
+                            "value": ["public", "internal"],
+                        }
+                    ]
+                },
             }
         },
     )
@@ -81,20 +202,9 @@ class AuthorityProof(BaseModel):
 
 class Authority(BaseModel):
     """
-    A DDF Authority grants an actor permission to perform actions on resources.
+    Legacy v0.1 authority record retained for compatibility.
 
-    Conceptually answers:
-    - Which actor (actor)
-    - can perform which action (actions)
-    - on which resource (resources)
-    - for what purpose (purposes)
-    - under whose sponsorship (sponsor)
-    - through what authority path (authority_path)
-    - with what effective constraints (constraints)
-    - until when (expires_at)
-    - proved by what cryptographic evidence (proof)
-
-    This is the canonical representation used for signing.
+    New capability payloads should use UniversalDDFCapabilityAssertion.
     """
 
     version: str = Field(
@@ -107,21 +217,15 @@ class Authority(BaseModel):
         description="Unique authority identifier",
     )
 
-    actor: str = Field(
-        description="The entity granted authority (e.g., 'agent:arkstride:buyer-42')"
-    )
+    actor: str = Field(description="Legacy identifier of the entity granted authority")
 
-    sponsor: str = Field(
-        description="Ultimate sponsor of this authority (e.g., 'user:alice@example.com')"
-    )
+    sponsor: str = Field(description="Legacy identifier of the original authority source")
 
-    actions: list[str] = Field(description="Permitted actions (e.g., ['purchase', 'quote'])")
+    actions: list[str] = Field(description="Legacy operation identifiers")
 
-    resources: list[str] = Field(
-        description="Permitted resources (hierarchical, e.g., ['vendor/dell/*'])"
-    )
+    resources: list[str] = Field(description="Legacy resource identifiers")
 
-    purposes: list[str] = Field(description="Permitted purposes (e.g., ['procurement'])")
+    purposes: list[str] = Field(description="Legacy use labels")
 
     constraints: AuthorityConstraints = Field(
         default_factory=AuthorityConstraints,
@@ -160,8 +264,23 @@ class Authority(BaseModel):
     @classmethod
     def expires_after_issued(cls, v: datetime, data: Any) -> datetime:
         """Ensure expires_at is after issued_at."""
-        if "issued_at" in data.data and v <= data.data["issued_at"]:
-            raise ValueError("expires_at must be after issued_at")
+        if "issued_at" in data.data:
+            issued_at = data.data["issued_at"]
+            if issued_at is None:
+                return v
+
+            if issued_at.tzinfo is None:
+                issued_at = issued_at.replace(tzinfo=UTC)
+            else:
+                issued_at = issued_at.astimezone(UTC)
+
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=UTC)
+            else:
+                v = v.astimezone(UTC)
+
+            if v <= issued_at:
+                raise ValueError("expires_at must be after issued_at")
         return v
 
     @field_validator("authority_path")
@@ -185,18 +304,23 @@ class Authority(BaseModel):
             "example": {
                 "version": "ddf/0.1",
                 "authority_id": "ddf:authority:01ARZ3NHHzB",
-                "actor": "agent:arkstride:buyer-42",
-                "sponsor": "user:alice@example.com",
-                "actions": ["purchase"],
-                "resources": ["vendor/dell/order/*"],
-                "purposes": ["engineering-laptop-procurement"],
-                "constraints": {"max_amount": 5000, "currency": "GBP", "geographies": ["GB"]},
-                "authority_path": [
-                    "user:alice@example.com",
-                    "agent:arkstride:assistant",
-                    "agent:arkstride:procurement",
-                    "agent:arkstride:buyer-42",
-                ],
+                "actor": "urn:agent:ddf:worker",
+                "sponsor": "did:key:z6Mksponsor",
+                "actions": ["execute"],
+                "resources": ["urn:mcp:tools/*"],
+                "purposes": ["service"],
+                "constraints": {
+                    "predicates": {
+                        "all": [
+                            {
+                                "path": "context.tenant_id",
+                                "op": "eq",
+                                "value": "tenant-7",
+                            }
+                        ]
+                    }
+                },
+                "authority_path": ["did:key:z6Mksponsor", "urn:agent:ddf:worker"],
                 "issued_at": "2026-08-13T12:00:00Z",
                 "expires_at": "2026-08-13T13:00:00Z",
                 "parent_authority_id": "ddf:authority:parent",
@@ -214,31 +338,31 @@ class Authority(BaseModel):
 class AuthorizationRequest(BaseModel):
     """Request to perform an authorization check."""
 
-    actor: str = Field(description="Actor attempting the action (e.g., 'agent:arkstride:buyer')")
-    action: str = Field(description="Action being requested (e.g., 'purchase')")
-    resource: str = Field(description="Resource being accessed (e.g., 'vendor/dell/order/9281')")
-    purpose: str = Field(description="Purpose of the request (e.g., 'procurement')")
+    actor: str = Field(description="Legacy identifier of the requesting subject")
+    action: str = Field(description="Legacy operation identifier")
+    resource: str = Field(description="Resource identifier")
+    purpose: str = Field(description="Legacy use label")
     authority_id: str = Field(description="ID of the authority being exercised")
+    target_namespace: str | None = Field(
+        default=None,
+        description="Namespace taxonomy for the requested resource",
+    )
 
     context: dict[str, Any] = Field(
         default_factory=dict,
-        description="Request context (amount, currency, geography, etc.)",
+        description="Request context evaluated against generic capability predicates",
     )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "actor": "agent:arkstride:buyer",
-                "action": "purchase",
-                "resource": "vendor/dell/order/9281",
-                "purpose": "procurement",
+                "actor": "urn:agent:ddf:worker",
+                "action": "execute",
+                "resource": "urn:mcp:tools:sql_query",
+                "purpose": "service",
                 "authority_id": "ddf:authority:01ARZ3NHHzB",
-                "context": {
-                    "amount": 4200,
-                    "currency": "GBP",
-                    "geography": "GB",
-                    "audience": "vendor-api",
-                },
+                "target_namespace": "mcp",
+                "context": {"tenant_id": "tenant-7"},
             }
         },
     )
@@ -284,21 +408,22 @@ class AuthorizationDecision(BaseModel):
         json_schema_extra={
             "example": {
                 "decision": "ALLOW",
-                "actor": "agent:arkstride:buyer",
-                "action": "purchase",
-                "resource": "vendor/dell/order/9281",
-                "purpose": "procurement",
-                "sponsor": "user:alice@example.com",
-                "authority_path": [
-                    "user:alice@example.com",
-                    "agent:arkstride:assistant",
-                    "agent:arkstride:procurement",
-                    "agent:arkstride:buyer",
-                ],
+                "actor": "urn:agent:ddf:worker",
+                "action": "execute",
+                "resource": "urn:mcp:tools:sql_query",
+                "purpose": "service",
+                "sponsor": "did:key:z6Mksponsor",
+                "authority_path": ["did:key:z6Mksponsor", "urn:agent:ddf:worker"],
                 "effective_constraints": {
-                    "max_amount": 2000.0,
-                    "currency": "GBP",
-                    "geographies": ["GB"],
+                    "predicates": {
+                        "all": [
+                            {
+                                "path": "context.tenant_id",
+                                "op": "eq",
+                                "value": "tenant-7",
+                            }
+                        ]
+                    }
                 },
                 "valid_until": "2026-08-13T16:00:00Z",
                 "decision_id": "ddf:decision:01ARZ3NHHzB",
@@ -306,8 +431,7 @@ class AuthorizationDecision(BaseModel):
                     "signature_valid",
                     "authority_chain_valid",
                     "resource_allowed",
-                    "purpose_allowed",
-                    "amount_within_limit",
+                    "capability_predicate_satisfied",
                 ],
             }
         },

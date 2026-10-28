@@ -288,3 +288,63 @@ async def test_authority_lifecycle_via_http(
 
         assert after_revoke.status_code == 403
         assert after_revoke.json()["error"]["code"] == "AUTHORITY_REVOKED"
+
+
+@pytest.mark.asyncio
+async def test_unauthenticated_authorize_is_rejected(
+    test_db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DDF_V01_COMPATIBILITY_ENABLED", raising=False)
+    marker = uuid.uuid4().hex[:8]
+    sponsor = f"user:alice-{marker}@example.com"
+    planner = f"agent:planner-{marker}"
+    buyer = f"agent:buyer-{marker}"
+    missing_authority_id = f"ddf:authority:missing-{marker}"
+
+    async with api_client(test_db, sponsor=sponsor) as client:
+        grant = await client.post(
+            "/v1/grants",
+            json={
+                "actor": planner,
+                "actions": ["purchase"],
+                "resources": ["vendor/*"],
+                "purposes": ["procurement"],
+            },
+        )
+        parent_id = grant.json().get("authority", {}).get(
+            "authority_id", missing_authority_id
+        )
+
+        delegated = await client.post(
+            f"/v1/delegations/{parent_id}",
+            json={
+                "delegated_to": buyer,
+                "actions": ["purchase"],
+                "resources": ["vendor/dell/*"],
+                "purposes": ["procurement"],
+            },
+        )
+        child_id = delegated.json().get("authority", {}).get(
+            "authority_id", missing_authority_id
+        )
+
+        authorized = await client.post(
+            "/v1/authorize",
+            json={
+                "actor": buyer,
+                "action": "purchase",
+                "resource": "vendor/dell/order/9281",
+                "purpose": "procurement",
+                "authority_id": child_id,
+                "context": {},
+            },
+        )
+
+    outcomes = (
+        grant.status_code,
+        delegated.status_code,
+        authorized.status_code,
+        authorized.json().get("decision"),
+    )
+    assert all(status in {401, 403, 410} for status in outcomes[:3]), outcomes

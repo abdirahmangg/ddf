@@ -2,10 +2,7 @@
   "schema_version": "1.1",
   "type_definitions": [
     {
-      "type": "user"
-    },
-    {
-      "type": "agent"
+      "type": "principal"
     },
     {
       "type": "organization",
@@ -18,8 +15,7 @@
         "relations": {
           "member": {
             "directly_related_user_types": [
-              {"type": "user"},
-              {"type": "agent"}
+              {"type": "principal"}
             ]
           }
         }
@@ -28,34 +24,29 @@
     {
       "type": "resource",
       "relations": {
-        "viewer": {
-          "this": {}
+        "subject": {
+          "union": [
+            {"this": {}},
+            {"computedUserset": {"relation": "member"}}
+          ]
         },
-        "editor": {
-          "this": {}
-        },
-        "operator": {
+        "member": {
           "this": {}
         }
       },
       "metadata": {
         "relations": {
-          "viewer": {
+          "subject": {
             "directly_related_user_types": [
-              {"type": "user"},
-              {"type": "agent"}
+              {"type": "principal"},
+              {"type": "principal", "wildcard": {}}
             ]
           },
-          "editor": {
+          "member": {
             "directly_related_user_types": [
-              {"type": "user"},
-              {"type": "agent"}
-            ]
-          },
-          "operator": {
-            "directly_related_user_types": [
-              {"type": "user"},
-              {"type": "agent"}
+              {"type": "principal"},
+              {"type": "principal", "wildcard": {}},
+              {"type": "resource", "relation": "member"}
             ]
           }
         }

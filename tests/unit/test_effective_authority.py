@@ -9,6 +9,7 @@ from ddf.authority.effective import (
     load_authority_chain,
 )
 from ddf.authority.models import AuthorityConstraints
+from ddf.crypto.signing import Ed25519Key
 from ddf.delegation.service import (
     DelegationService,
     GrantService,
@@ -33,6 +34,7 @@ async def test_effective_authority_across_three_hops(
             currency="GBP",
             geographies=["GB"],
         ),
+        signing_key=Ed25519Key.generate(),
     )
 
     middle, _ = await DelegationService.create_delegation(
@@ -47,6 +49,7 @@ async def test_effective_authority_across_three_hops(
             currency="GBP",
             geographies=["GB"],
         ),
+        signing_key=Ed25519Key.generate(),
     )
 
     leaf, _ = await DelegationService.create_delegation(
@@ -61,6 +64,7 @@ async def test_effective_authority_across_three_hops(
             currency="GBP",
             geographies=["GB"],
         ),
+        signing_key=Ed25519Key.generate(),
     )
 
     chain = await load_authority_chain(

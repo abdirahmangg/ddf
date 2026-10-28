@@ -59,6 +59,7 @@ async def create_grant(
             expires_in_hours=request.expires_in_hours,
             reason=request.reason,
             signing_key=None,  # Will be signed by API if needed
+            unsigned=True,
         )
 
         # Convert to response
@@ -124,6 +125,7 @@ async def create_delegation(
             constraints=request.constraints,
             reason=request.reason,
             signing_key=None,
+            unsigned=True,
         )
 
         # Convert to response

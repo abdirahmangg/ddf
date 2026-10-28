@@ -78,11 +78,10 @@ def create_app() -> FastAPI:
     app.include_router(revocation_router)
     app.include_router(provenance_router)
 
+    install_commercial(app)
+
     return app
 
 
 app = create_app()
-install_commercial(app)
-
-
 install_production_readiness(app)

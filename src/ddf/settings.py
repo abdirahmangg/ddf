@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     debug: bool = False
 
-    database_url: str = "postgresql://ddf:ddf_password@localhost:5432/ddf_db"
+    database_url: str = "sqlite+aiosqlite:///./ddf.db"
     sqlalchemy_echo: bool = False
 
     # OpenFGA HTTP API. Port 8081 is the gRPC endpoint.

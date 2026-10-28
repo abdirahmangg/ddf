@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from ddf.db.models import Base
 from ddf.settings import get_settings
 
 
@@ -42,6 +43,9 @@ class Database:
             class_=AsyncSession,
             expire_on_commit=False,
         )
+
+        async with self.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
     async def get_session(self) -> AsyncSession:
         """Create a new database session."""
